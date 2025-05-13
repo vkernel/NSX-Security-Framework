@@ -1,0 +1,7 @@
+# NSX Connection Parameters
+nsx_manager_host = "nsx_fqdn"
+nsx_username     = "nsx_user"
+nsx_password     = "NSX_pass"
+
+# Tenants to deploy
+tenants = ["wld01", "wld02"]

@@ -1,0 +1,77 @@
+---
+wld02:
+  emergency_policy:
+    - name: Allow emergency rule on VMs with this tag
+      source: 
+        - emg-wld02
+      destination: 
+        - any
+      scope_enabled: true  # Set to false to disable tenant scope, defaults to true
+  environment_policy:
+    allowed_communications:
+      - name: Allow dev environment to acc environment
+        source: env-wld02-dev
+        destination: env-wld02-acc
+        scope_enabled: true  # Set to false to disable tenant scope, defaults to true
+    blocked_communications:
+      - name: Block acc environment from dev environment
+        source: env-wld02-acc
+        destination: env-wld02-dev
+        scope_enabled: true  # Set to false to disable tenant scope, defaults to true
+  application_policy:
+    - name: Allow jumphost to ten-wld02 on port 22
+      source: ext-wld02-jumphosts
+      destination: 
+        - ten-wld02
+      services:
+        - SSH
+      scope_enabled: false  # Set to false to disable tenant scope, defaults to true
+    - name: Allow jumphost to web servers on port 443
+      source: ext-wld02-jumphosts
+      destination: 
+        - app-wld02-dev-3holapp-web
+        - app-wld02-dev-web
+        - app-wld02-acc-web
+      services:
+        - ICMPv4
+      ports:
+        - 443
+      protocol: tcp
+      scope_enabled: true  # Set to false to disable tenant scope, defaults to true
+    - name: Allow web servers to application servers on port 8443
+      source: 
+        - app-wld02-dev-3holapp-web
+        - app-wld02-dev-web
+        - app-wld02-acc-web
+      destination: 
+        - app-wld02-dev-3holapp-application
+        - app-wld02-dev-application
+        - app-wld02-acc-application
+      services:
+        - ICMPv4
+      ports: 
+        - 8443
+      protocol: tcp
+      scope_enabled: true  # Set to false to disable tenant scope, defaults to true
+    - name: Allow application servers to database servers on port 3306
+      source: 
+        - app-wld02-dev-3holapp-application
+        - app-wld02-dev-application
+        - app-wld02-acc-application
+      destination: 
+        - app-wld02-dev-3holapp-database
+        - app-wld02-dev-database
+        - app-wld02-acc-database
+      services:
+        - ICMPv4
+      ports:
+        - 3306
+      protocol: tcp
+      scope_enabled: true  # Set to false to disable tenant scope, defaults to true
+    - name: Allow wld02 servers to external DNS on port 53
+      source: ten-wld02
+      destination: ext-wld02-dns
+      ports:
+        - 53  
+      protocol: udp
+      scope_enabled: true  # Set to false to disable tenant scope, defaults to true 
