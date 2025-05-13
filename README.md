@@ -215,17 +215,17 @@ Based on the tagging strategy, the following security groups are created:
 └───────────────────┬───────────────────────┘
                     │
                     ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                    Security Policy Hierarchy                    │
-├─────────────────────┬─────────────────────┬─────────────────────┤
-│ Emergency Policy    │ Environment Policy  │ Application Policy  │
-│ (Highest Priority)  │ (Medium Priority)   │ (Lowest Priority)   │
-├─────────────────────┼─────────────────────┼─────────────────────┤
-│ - Emergency access  │ - Env isolation     │ - App tier comms    │
-│ - Critical systems  │ - Dev/Test/Prod     │ - Service access    │
+┌──────────────────────────────────────────────────────────────────┐
+│                    Security Policy Hierarchy                     │
+├─────────────────────┬─────────────────────┬──────────────────────┤
+│ Emergency Policy    │ Environment Policy  │ Application Policy   │
+│ (Highest Priority)  │ (Medium Priority)   │ (Lowest Priority)    │
+├─────────────────────┼─────────────────────┼──────────────────────┤
+│ - Emergency access  │ - Env isolation     │ - App tier comms     │
+│ - Critical systems  │ - Dev/Test/Prod     │ - Service access     │
 │                     │   boundaries        │ - Custom & predefined│
 │                     │                     │   service definitions│
-└─────────────────────┴─────────────────────┴─────────────────────┘
+└─────────────────────┴─────────────────────┴──────────────────────┘
 ```
 
 ## Implementation
