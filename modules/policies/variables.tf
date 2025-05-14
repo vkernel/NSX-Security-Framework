@@ -23,4 +23,9 @@ variable "groups" {
 variable "services" {
   description = "Map of service definitions for reference in policies"
   type        = map(any)
+}
+
+variable "context_profiles" {
+  description = "Map of context profile IDs for reference in policies"
+  type        = map(any)
 } 

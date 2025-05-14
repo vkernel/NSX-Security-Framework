@@ -38,4 +38,4 @@ wld02:  # Tenant Key
       - 10.10.89.11 
   emergency:
     emg-wld02:  # Emergency Key
-      - a-db-01a
+      - 

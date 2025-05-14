@@ -53,6 +53,16 @@ locals {
         try(rule.protocol, null) != null && try(rule.ports, null) != null ?
           ["${rule.protocol}_${join("_", [for port in rule.ports : tostring(port)])}"] : []
       )
+      # Process both predefined and custom context profiles
+      predefined_profiles = try(rule.context_profiles, [])
+      has_custom_profile = (try(rule.context_profile_attributes.app_id, null) != null || 
+                            try(rule.context_profile_attributes.domain, null) != null)
+      custom_profile_key = rule.name
+      # Check if we have both predefined and custom profiles
+      has_multiple_profiles = length(try(rule.context_profiles, [])) > 0 && (
+        try(rule.context_profile_attributes.app_id, null) != null || 
+        try(rule.context_profile_attributes.domain, null) != null
+      )
       action        = "ALLOW"
       scope_enabled = try(rule.scope_enabled, true)
     }
@@ -246,13 +256,29 @@ resource "nsxt_policy_security_policy" "application_policy" {
         )
       ])
       
-      # Handle services - can be predefined or custom
-      services = flatten([
+      # Handle services - can be predefined or custom 
+      # If we have multiple context profiles, we need to set services to ANY (empty list)
+      services = rule.value.has_multiple_profiles ? [] : flatten([
         for service_key in rule.value.service_keys : [
           try(var.services[service_key].path, "")
         ]
         if try(var.services[service_key].path, "") != ""
       ])
+      
+      # Handle context profiles - combine predefined and custom profiles in one list
+      profiles = concat(
+        # Get predefined profile paths 
+        flatten([
+          for profile_name in rule.value.predefined_profiles : 
+          lookup(var.context_profiles, profile_name, null) != null ? 
+            [lookup(var.context_profiles, profile_name)] : []
+        ]),
+        # Add custom profile if it exists
+        rule.value.has_custom_profile ? 
+          (lookup(var.context_profiles, rule.value.custom_profile_key, null) != null ? 
+            [lookup(var.context_profiles, rule.value.custom_profile_key)] : []) : []
+      )
+      
       action           = rule.value.action
       logged           = true
     }

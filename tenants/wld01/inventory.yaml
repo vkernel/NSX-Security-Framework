@@ -38,6 +38,5 @@ wld01:  # Tenant Key
       - 10.10.89.11 
   emergency:
     emg-wld01:  # Emergency Key
-      - p-db-01a
-      - t-db-01a
+      - 
 

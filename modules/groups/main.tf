@@ -168,20 +168,27 @@ resource "nsxt_policy_group" "external_service_groups" {
 
 # Create emergency groups
 resource "nsxt_policy_group" "emergency_groups" {
+  # Keep all emergency keys, even when empty
   for_each = local.emergency_resources
   
   display_name = each.key
   description  = "Group for emergency access ${each.key}"
   
-  criteria {
-    condition {
-      key         = "Tag"
-      member_type = "VirtualMachine"
-      operator    = "EQUALS"
-      value       = "${each.key}"
+  # Only add criteria for non-empty lists
+  dynamic "criteria" {
+    # This will create 1 criteria if the list is not empty, 0 criteria if empty
+    for_each = length(compact(coalesce(each.value, []))) > 0 ? [1] : []
+    content {
+      condition {
+        key         = "Tag"
+        member_type = "VirtualMachine"
+        operator    = "EQUALS"
+        value       = "${each.key}"
+      }
     }
   }
 
+  # Always add the tag
   tag {
     scope = "emergency"
     tag   = each.key

@@ -137,6 +137,8 @@ emergency_policy:
     destination: any
 ```
 
+Emergency policies can reference emergency groups even when they have no VMs assigned. This provides flexibility to add VMs to these groups when needed without requiring changes to the policies or infrastructure. The framework automatically maintains empty emergency groups in the NSX-T inventory.
+
 ### Environment Policy
 
 The environment policy controls communication between different environments (e.g., production, test, etc.):
@@ -218,6 +220,25 @@ You can combine both approaches in the same rule. When you do this, both the pre
 ```
 
 In this example, the rule will allow traffic using the predefined HTTPS and SSH services, plus TCP traffic on ports 8443 and 8080.
+
+#### Using Context Profiles
+
+NSX-T supports multiple context profiles in a single firewall rule only when Services is set to ANY. When you specify both `context_profiles` (predefined) and `context_profile_attributes` (custom), the framework automatically sets the `services` list to empty (ANY). For rules requiring specific service or port definitions, only use a single context profile.
+
+```yaml
+- name: Allow web traffic with context profiles
+  source: ext-wld01-jumphosts
+  destination:
+    - app-wld01-prod-web
+  services: []  # ANY when using multiple context profiles
+  context_profiles:
+    - SSL
+    - DNS
+  context_profile_attributes:
+    domain:
+      - "*.vkernel.nl"
+  scope_enabled: true
+```
 
 ### Controlling Scope for Security Rules
 

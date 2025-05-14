@@ -85,14 +85,20 @@ locals {
   }
   
   # Emergency stuff, if any
-  emergency = try(local.tenant_data.emergency, null)
+  emergency = try(local.tenant_data.emergency, {})
   
-  # Create a mapping of VM name to its emergency group key
-  emergency_vm_tags = merge([
-    for emg_key, emg_list in local.emergency : {
-      for vm in emg_list : vm => emg_key
-    }
-  ]...)
+  # Create a mapping of VM name to its emergency group key, handling empty lists
+  emergency_vm_tags = merge(
+    [
+      for emg_key, emg_list in local.emergency : 
+      # Only process non-empty lists
+      length(compact(coalesce(emg_list, []))) > 0 ? 
+      {
+        for vm in emg_list : vm => emg_key
+        if vm != null && vm != ""
+      } : {}
+    ]...
+  )
   
   # Derive the list of emergency VMs from the keys of the mapping
   emergency_vms = keys(local.emergency_vm_tags)

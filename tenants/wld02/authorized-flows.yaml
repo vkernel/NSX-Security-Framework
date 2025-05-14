@@ -6,18 +6,18 @@ wld02:
         - emg-wld02
       destination: 
         - any
-      scope_enabled: true  # Set to false to disable tenant scope, defaults to true
+      scope_enabled: true  
   environment_policy:
     allowed_communications:
       - name: Allow dev environment to acc environment
         source: env-wld02-dev
         destination: env-wld02-acc
-        scope_enabled: true  # Set to false to disable tenant scope, defaults to true
+        scope_enabled: true  
     blocked_communications:
       - name: Block acc environment from dev environment
         source: env-wld02-acc
         destination: env-wld02-dev
-        scope_enabled: true  # Set to false to disable tenant scope, defaults to true
+        scope_enabled: true 
   application_policy:
     - name: Allow jumphost to ten-wld02 on port 22
       source: ext-wld02-jumphosts
@@ -25,7 +25,7 @@ wld02:
         - ten-wld02
       services:
         - SSH
-      scope_enabled: false  # Set to false to disable tenant scope, defaults to true
+      scope_enabled: false  
     - name: Allow jumphost to web servers on port 443
       source: ext-wld02-jumphosts
       destination: 
@@ -37,7 +37,7 @@ wld02:
       ports:
         - 443
       protocol: tcp
-      scope_enabled: true  # Set to false to disable tenant scope, defaults to true
+      scope_enabled: true  
     - name: Allow web servers to application servers on port 8443
       source: 
         - app-wld02-dev-3holapp-web
@@ -52,7 +52,7 @@ wld02:
       ports: 
         - 8443
       protocol: tcp
-      scope_enabled: true  # Set to false to disable tenant scope, defaults to true
+      scope_enabled: true  
     - name: Allow application servers to database servers on port 3306
       source: 
         - app-wld02-dev-3holapp-application
@@ -67,11 +67,11 @@ wld02:
       ports:
         - 3306
       protocol: tcp
-      scope_enabled: true  # Set to false to disable tenant scope, defaults to true
+      scope_enabled: true  
     - name: Allow wld02 servers to external DNS on port 53
       source: ten-wld02
       destination: ext-wld02-dns
       ports:
         - 53  
       protocol: udp
-      scope_enabled: true  # Set to false to disable tenant scope, defaults to true 
+      scope_enabled: true  

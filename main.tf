@@ -80,6 +80,22 @@ module "services" {
   }
 }
 
+# Create context profiles for each tenant
+module "context_profiles" {
+  source = "./modules/context_profiles"
+  
+  for_each = local.tenant_configs
+  
+  tenant_id       = each.key
+  authorized_flows = each.value.authorized_flows
+  
+  depends_on = [module.groups]
+  
+  providers = {
+    nsxt = nsxt
+  }
+}
+
 # Create policies for each tenant
 module "policies" {
   source = "./modules/policies"
@@ -99,8 +115,9 @@ module "policies" {
   }
   
   services = module.services[each.key].services
+  context_profiles = module.context_profiles[each.key].all_context_profiles
   
-  depends_on = [module.services]
+  depends_on = [module.services, module.context_profiles]
   
   providers = {
     nsxt = nsxt

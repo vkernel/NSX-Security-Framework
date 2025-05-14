@@ -50,23 +50,20 @@ Defines the allowed and blocked communication patterns between resources.
 ```yaml
 tenant_id:
   emergency_policy:
-    - name: Allow emergency rule name
-      source:
-        - {tenant}-emergency
-      destination:
-        - any
-      scope_enabled: true  # Optional: Set to false to disable tenant scope (defaults to true)
+    - name: Allow emergency rule on VMs with this tag
+      source: emg-wld01
+      destination: any
   environment_policy:
     allowed_communications:
       - name: Allow prod to test 
         source: env-{tenant}-prod
         destination: env-{tenant}-test
-        scope_enabled: true  # Optional: Set to false to disable tenant scope (defaults to true)
+        scope_enabled: true 
     blocked_communications:
       - name: Block test from prod
         source: env-{tenant}-test
         destination: env-{tenant}-prod
-        scope_enabled: true  # Optional: Set to false to disable tenant scope (defaults to true)
+        scope_enabled: true 
   application_policy:
     - name: Rule name
       source: 
@@ -76,7 +73,7 @@ tenant_id:
       ports:
         - 443
       protocol: tcp
-      scope_enabled: true  # Optional: Set to false to disable tenant scope (defaults to true)
+      scope_enabled: true   true)
 ```
 
 ## Tagging Strategy
@@ -320,4 +317,146 @@ To view all predefined services available in your NSX instance:
    GET https://your-nsx-manager/api/v1/infra/services
    ```
 
-4. **Export Option**: The NSX UI allows you to export the complete list of services to a CSV file for reference. 
+4. **Export Option**: The NSX UI allows you to export the complete list of services to a CSV file for reference.
+
+## Context Profiles Usage
+
+Context profiles in NSX allow for deeper application-level traffic inspection. The framework supports both predefined context profiles and custom context profiles.
+
+### Using Predefined Context Profiles
+
+To use a predefined context profile in a security rule:
+
+```yaml
+- name: Allow web traffic
+  source: app-source-group
+  destination: app-destination-group
+  services:
+    - HTTPS
+  context_profiles:
+    - HTTPS
+    - SSL
+  scope_enabled: true
+```
+
+### Creating Custom Context Profiles
+
+Custom context profiles can be created using App IDs or Domain Names:
+
+#### Using Predefined App IDs:
+
+```yaml
+- name: Custom App ID Profile
+  source: app-source-group
+  destination: app-destination-group
+  context_profile_attributes:
+    app_id:
+      - "HTTPS"
+      - "ACTIVEDIR" 
+```
+
+#### Using Predefined Domain Names:
+
+```yaml
+- name: Custom Domain Profile
+  source: app-source-group
+  destination: app-destination-group
+  context_profile_attributes:
+    domain:
+      - "*.microsoft.com"
+      - "*.office365.com"
+```
+
+#### Combining Both:
+
+```yaml
+- name: Combined Profile
+  source: app-source-group
+  destination: app-destination-group
+  context_profile_attributes:
+    app_id:
+      - "HTTPS"
+    domain:
+      - "*.microsoft.com"
+```
+
+#### Using Multiple Context Profiles
+
+NSX-T supports multiple context profiles in a single firewall rule only when Services is set to ANY. The framework automatically sets the `services` list to empty (interpreted as ANY) when both `context_profiles` and `context_profile_attributes` are specified. If you need to include specific service or port requirements, limit to a single context profile per rule.
+
+### Retrieving Available App IDs and Domain Names
+
+The NSX infrastructure provides a wide range of predefined App IDs and Domain Name patterns that can be used in your context profiles. You can view them in the NSX Manager UI:
+
+1. Log in to the NSX Manager UI
+2. Navigate to Security → Profiles → Context Profiles
+3. The list will show both system-defined (predefined) profiles and any custom profiles you've created
+
+Common App IDs include: ACTIVEDIR, ACTIVESYNC, DNS, FTP, HTTP, HTTPS, IMAP, LDAP, MYSQL, SMTP, SSH, SSL, etc.
+
+Common Domain patterns include: *.microsoft.com, *.office365.com, *.salesforce.com, *.slack.com, etc.
+
+```yaml
+# Example of using predefined App IDs
+context_profile_attributes:
+  app_id:
+    - "HTTPS"
+    - "SSL"
+```
+
+```yaml
+# Example of using domain patterns
+context_profile_attributes:
+  domain:
+    - "*.microsoft.com"
+    - "*.office365.com"
+```
+
+### Emergency Policy
+
+The emergency policy contains rules that have the highest priority. These rules provide access during emergencies or for critical administrative purposes. Emergency groups can exist even without VMs assigned to them, providing flexibility to add VMs to them when needed without changing the infrastructure.
+
+```yaml
+tenant_id:
+  emergency_policy:
+    - name: Allow emergency rule on VMs with this tag
+      source: emg-wld01
+      destination: any
+```
+
+### Environment Policy
+
+The environment policy contains rules that control communication between different environments. These rules can be used to isolate environments or allow controlled communication between them.
+
+```yaml
+tenant_id:
+  environment_policy:
+    allowed_communications:
+      - name: Allow prod to test 
+        source: env-{tenant}-prod
+        destination: env-{tenant}-test
+        scope_enabled: true 
+    blocked_communications:
+      - name: Block test from prod
+        source: env-{tenant}-test
+        destination: env-{tenant}-prod
+        scope_enabled: true 
+```
+
+### Application Policy
+
+The application policy contains rules that define allowed communications between application tiers and components.
+
+```yaml
+tenant_id:
+  application_policy:
+    - name: Rule name
+      source: 
+        - app-{tenant}-{env}-{component1}
+      destination: 
+        - app-{tenant}-{env}-{component2}
+      ports:
+        - 443
+      protocol: tcp
+      scope_enabled: true   true)
+```
