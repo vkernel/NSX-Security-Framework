@@ -39,4 +39,24 @@ wld01:  # Tenant Key
   emergency:
     emg-wld01:  # Emergency Key
       - 
+  custom_context_profiles:
+    cp-wld01-custom-context-profile-name2:
+      app_id: 
+        - "ACTIVDIR"   
+        - "AMQP"   
+      domain:
+        - "*.microsoft.com"      
+        - "*.office365.com"      
+        - "*.teams.microsoft.com"
+        - "*.vkernel.nl"
+    cp-wld01-custom-context-profile-name3:
+      app_id: 
+        - "AMQP"   
+      domain:
+        - "*.microsoft.com"
+  custom_services:  
+    svc-wld01-custom-service-name1:
+      ports:
+        - 8443
+      protocol: tcp
 

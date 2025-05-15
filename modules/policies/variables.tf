@@ -8,6 +8,11 @@ variable "authorized_flows" {
   type        = any
 }
 
+variable "inventory" {
+  description = "Inventory configuration"
+  type        = any
+}
+
 variable "groups" {
   description = "Map of group IDs for reference in policies"
   type = object({

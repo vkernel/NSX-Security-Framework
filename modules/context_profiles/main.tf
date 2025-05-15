@@ -15,6 +15,7 @@ data "nsxt_policy_context_profile" "predefined_profiles" {
 locals {
   tenant_key = var.tenant_id
   tenant_data = var.authorized_flows[local.tenant_key]
+  tenant_inventory = var.inventory[local.tenant_key]
   
   # Extract all predefined context profile names from application policies
   predefined_profile_names = distinct(flatten([
@@ -22,22 +23,24 @@ locals {
       try(rule.context_profiles, [])
   ]))
   
-  # Extract custom context profile definitions from application policies
-  # This now handles multiple context profiles per rule
-  custom_profile_definitions = flatten([
+  # Extract custom context profile references from application policies
+  custom_profile_references = distinct(flatten([
     for rule in try(local.tenant_data.application_policy, []) :
-      [
-        for profile_name, profile_attrs in try(rule.custom_context_profiles, {}) : {
-          name = profile_name
-          app_ids = try(profile_attrs.app_id, [])
-          domains = try(profile_attrs.domain, [])
-        }
-        if profile_attrs != null && (
-          try(length(profile_attrs.app_id), 0) > 0 || 
-          try(length(profile_attrs.domain), 0) > 0
-        )
-      ]
-  ])
+      try(rule.custom_context_profiles, [])
+  ]))
+  
+  # Get custom context profile definitions from inventory file
+  custom_profile_definitions = [
+    for profile_name, profile_attrs in try(local.tenant_inventory.custom_context_profiles, {}) : {
+      name = profile_name
+      app_ids = try(profile_attrs.app_id, [])
+      domains = try(profile_attrs.domain, [])
+    }
+    if profile_attrs != null && (
+      try(length(profile_attrs.app_id), 0) > 0 || 
+      try(length(profile_attrs.domain), 0) > 0
+    )
+  ]
 }
 
 # Create NSX context profiles for each custom profile definition

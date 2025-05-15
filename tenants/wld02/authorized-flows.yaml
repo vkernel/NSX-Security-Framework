@@ -40,9 +40,7 @@ wld02:
         - app-wld02-acc-web
       services:
         - ICMPv4
-      ports:
-        - 443
-      protocol: tcp
+        - HTTPS
       scope_enabled: true  
     - name: Allow web servers to application servers on port 8443
       source: 
@@ -55,9 +53,8 @@ wld02:
         - app-wld02-acc-application
       services:
         - ICMPv4
-      ports: 
-        - 8443
-      protocol: tcp
+      custom_services:
+        - svc-wld02-custom-service-name1
       scope_enabled: true  
     - name: Allow application servers to database servers on port 3306
       source: 
@@ -70,16 +67,24 @@ wld02:
         - app-wld02-acc-database
       services:
         - ICMPv4
-      ports:
-        - 3306
-      protocol: tcp
+        - MySQL
       scope_enabled: true  
     - name: Allow wld02 servers to external DNS on port 53
       source: 
         - ten-wld02
       destination: 
         - ext-wld02-dns
-      ports:
-        - 53  
-      protocol: udp
+      services:
+        - DNS-TCP
+      scope_enabled: true
+    - name: Example of context profiles
+      source: 
+        - ten-wld02
+      destination: 
+        - ext-wld02-dns
+      context_profiles:
+        - DNS
+        - SSL
+      custom_context_profiles:
+        - cp-wld02-custom-context-profile-name1
       scope_enabled: true  

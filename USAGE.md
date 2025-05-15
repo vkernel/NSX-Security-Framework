@@ -20,8 +20,8 @@ This guide provides step-by-step instructions for deploying the NSX Security Fra
 For each tenant you want to deploy:
 
 1. Review and modify the tenant YAML files in the `tenants/<tenant_id>` directory:
-   - `inventory.yaml`: Defines the tenant structure (environments, applications, VMs)
-   - `authorized-flows.yaml`: Defines the allowed traffic flows
+   - `inventory.yaml`: Defines the tenant structure (environments, applications, VMs, custom services, and custom context profiles)
+   - `authorized-flows.yaml`: Defines the allowed traffic flows with references to services and context profiles
 
 2. Make sure the VM names in your YAML files match the display names of your actual VMs in NSX.
 
@@ -81,7 +81,8 @@ After Terraform completes, verify the deployment:
 2. Check that the following resources have been created:
    - VM tags for tenant, environment, application, and sub-application
    - Groups based on tags and IP addresses
-   - Services for allowed protocols and ports
+   - Services for allowed protocols and ports (both predefined and custom)
+   - Context profiles for application-level inspection (both predefined and custom)
    - Security policies with rules for environment and application traffic
 
 ## Deploying for Multiple Tenants
@@ -106,7 +107,44 @@ All tenants specified in the `tenants` list are managed together and configurati
 
 There is no need to use workspaces or separate state files for different tenants, as the framework now supports managing multiple tenants simultaneously in a single Terraform state.
 
-## Structure of authorized-flows.yaml
+## YAML File Structure
+
+### Structure of inventory.yaml
+
+The `inventory.yaml` file for each tenant defines the tenant structure, resources, custom services, and custom context profiles:
+
+```yaml
+tenant_id:  # e.g., wld01
+  internal:  # Internal resources organized by environment and application
+    env-{tenant}-{environment}:  # Environment (e.g., env-wld01-prod)
+      app-{tenant}-{environment}-{app}:  # Application (e.g., app-wld01-prod-3holapp)
+        app-{tenant}-{environment}-{app}-{component}:  # Sub-application (e.g., app-wld01-prod-3holapp-web)
+          - vm-name-1  # VM names that belong to this component
+          - vm-name-2
+      app-{tenant}-{environment}-{app2}:  # Another application
+        - vm-name-3  # VMs directly under the application (no sub-application)
+  external:  # External services defined by IP addresses
+    ext-{tenant}-{service}:  # External service (e.g., ext-wld01-dns)
+      - 192.168.12.10  # IP addresses for this service
+  emergency:  # Emergency access groups
+    emg-{tenant}:  # Emergency group (e.g., emg-wld01)
+      - vm-name-4  # VMs that need emergency access
+  custom_context_profiles:  # Custom context profiles for deeper traffic inspection
+    cp-{tenant}-{profile-name}:  # Custom context profile (e.g., cp-wld01-custom-profile)
+      app_id:  # Application IDs for this profile
+        - "ACTIVDIR"
+        - "AMQP"
+      domain:  # Domain patterns for this profile
+        - "*.microsoft.com"
+        - "*.office365.com"
+  custom_services:  # Custom services with protocol and ports
+    svc-{tenant}-{service-name}:  # Custom service (e.g., svc-wld01-custom-service)
+      ports:  # Ports for this service
+        - 8443
+      protocol: tcp  # Protocol (tcp, udp, or icmp)
+```
+
+### Structure of authorized-flows.yaml
 
 The `authorized-flows.yaml` file for each tenant defines the allowed traffic flows between different groups. It consists of several sections:
 
@@ -157,39 +195,27 @@ environment_policy:
 
 ### Application Policy
 
-The application policy defines allowed traffic between specific application components. You can specify traffic flows using three methods:
+The application policy defines allowed traffic between specific application components. You can specify traffic flows using several methods:
 
 #### Application Policy Methods Diagram
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                   Application Policy Methods                    │
-├─────────────────────┬─────────────────────┬─────────────────────┤
-│      Method 1       │      Method 2       │      Method 3       │
-│  Custom Protocol    │    Predefined       │     Combined        │
-│      & Ports        │     Services        │     Approach        │
-├─────────────────────┼─────────────────────┼─────────────────────┤
-│ - protocol: tcp     │ - services:         │ - services:         │
-│ - ports: [8443]     │   - HTTPS           │   - HTTPS           │
-│                     │   - SSH             │ - protocol: tcp     │
-│                     │                     │ - ports: [8443]     │
-└─────────────────────┴─────────────────────┴─────────────────────┘
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│                             Application Policy Methods                          │
+├────────────────────┬────────────────────┬───────────────────┬───────────────────┤
+│     Method 1       │     Method 2       │     Method 3      │     Method 4      │
+│ Predefined Services│  Custom Services   │Context Profiles   │  Combined Approach │
+├────────────────────┼────────────────────┼───────────────────┼───────────────────┤
+│ - services:        │ - custom_services: │ - context_profiles:│ - services:       │
+│   - HTTPS          │   - svc-name       │   - SSL           │   - HTTPS         │
+│   - SSH            │                    │ - custom_context_ │ - custom_services: │
+│                    │                    │   profiles:       │   - svc-name      │
+│                    │                    │   - cp-name       │ - context_profiles:│
+│                    │                    │                   │   - SSL           │
+└────────────────────┴────────────────────┴───────────────────┴───────────────────┘
 ```
 
-#### Method 1: Using ports and protocol
-
-```yaml
-- name: Allow web servers to application servers on port 8443
-  source: 
-    - app-wld01-prod-web
-  destination: 
-    - app-wld01-prod-application
-  ports: 
-    - 8443
-  protocol: tcp
-```
-
-#### Method 2: Using predefined NSX services
+#### Method 1: Using predefined NSX services
 
 ```yaml
 - name: Allow HTTPS and SSH access to web servers
@@ -202,42 +228,48 @@ The application policy defines allowed traffic between specific application comp
     - ICMPv4
 ```
 
-#### Method 3: Combining both approaches
-
-You can combine both approaches in the same rule. When you do this, both the predefined services AND the custom port/protocol will be included in the security rule:
+#### Method 2: Using custom services defined in inventory.yaml
 
 ```yaml
-- name: Allow HTTPS and custom port access
+- name: Allow custom service access
   source: ext-wld01-jumphosts
-  destination: app-wld01-prod-web
-  services:
-    - HTTPS
-    - SSH
-  ports:
-    - 8443
-    - 8080
-  protocol: tcp
+  destination: 
+    - app-wld01-prod-web
+  custom_services:
+    - svc-wld01-custom-service-name
 ```
 
-In this example, the rule will allow traffic using the predefined HTTPS and SSH services, plus TCP traffic on ports 8443 and 8080.
-
-#### Using Context Profiles
-
-NSX-T supports multiple context profiles in a single firewall rule only when Services is set to ANY. When you specify both `context_profiles` (predefined) and `context_profile_attributes` (custom), the framework automatically sets the `services` list to empty (ANY). For rules requiring specific service or port definitions, only use a single context profile.
+#### Method 3: Using context profiles (predefined and custom)
 
 ```yaml
 - name: Allow web traffic with context profiles
   source: ext-wld01-jumphosts
   destination:
     - app-wld01-prod-web
-  services: []  # ANY when using multiple context profiles
   context_profiles:
     - SSL
     - DNS
-  context_profile_attributes:
-    domain:
-      - "*.vkernel.nl"
-  scope_enabled: true
+  custom_context_profiles:
+    - cp-wld01-custom-context-profile
+```
+
+#### Method 4: Combined approach
+
+You can combine multiple approaches in a single rule:
+
+```yaml
+- name: Combined rule with services and context profiles
+  source: ext-wld01-jumphosts
+  destination: 
+    - app-wld01-prod-web
+  services:
+    - HTTPS
+  custom_services:
+    - svc-wld01-custom-service-name
+  context_profiles:
+    - SSL
+  custom_context_profiles:
+    - cp-wld01-custom-context-profile
 ```
 
 ### Controlling Scope for Security Rules
@@ -245,14 +277,13 @@ NSX-T supports multiple context profiles in a single firewall rule only when Ser
 Each rule can optionally control whether the tenant scope is applied:
 
 ```yaml
-- name: Allow web servers to application servers on port 8443
+- name: Allow web servers to application servers
   source: 
     - app-wld01-prod-web
   destination: 
     - app-wld01-prod-application
-  ports: 
-    - 8443
-  protocol: tcp
+  services:
+    - HTTPS
   scope_enabled: true  # Optional: Set to false to disable tenant scope (defaults to true)
 ```
 
@@ -267,9 +298,9 @@ The `scope_enabled` parameter can be applied to:
 
 Use this feature when you need to create rules that should apply to resources without the tenant tag or that require global application.
 
-To see a list of available predefined services, refer to the Predefined NSX Services section in the README.md file. You can also find the complete list in the NSX Management UI under Networking → Services → Service Definitions.
+## Finding and Using NSX Predefined Resources
 
-## Finding and Using NSX Predefined Services
+### Predefined Services
 
 NSX provides approximately 400+ predefined services that can be used in your security policies. To view and use these services:
 
@@ -284,9 +315,25 @@ NSX provides approximately 400+ predefined services that can be used in your sec
    - Reference the exact service name in your authorized-flows.yaml file
    - Example: `services: ["HTTPS", "SSH"]`
 
-4. **API Access**:
-   - Query the NSX API to retrieve service definitions:
-   - `GET https://your-nsx-manager/api/v1/infra/services`
+### Predefined Context Profiles
+
+NSX provides predefined context profiles that can be used for deeper traffic inspection:
+
+1. **View in NSX UI**:
+   - Navigate to Security → Profiles → Context Profiles
+   - Filter for system-defined profiles
+
+2. **Common Predefined Context Profiles**:
+   - DNS
+   - FTP
+   - HTTP
+   - HTTPS
+   - SSL
+   - SSH
+
+3. **Use in Configuration**:
+   - Reference the exact context profile name in your authorized-flows.yaml file
+   - Example: `context_profiles: ["DNS", "SSL"]`
 
 ## Modifying Existing Deployments
 
@@ -322,6 +369,11 @@ To modify an existing deployment:
 5. **Predefined Service Not Found**:
    - Verify the exact spelling of the service name as shown in NSX UI
    - Check if the service exists in your NSX version
+   
+6. **Context Profile Issues**:
+   - Ensure your App IDs and domain names are formatted correctly
+   - Verify that context profile names match exactly as shown in NSX UI
+   - Remember that when using multiple context profiles, services must be set to ANY
 
 ## Resource Cleanup
 
@@ -360,11 +412,11 @@ The following diagram illustrates the overall deployment process:
 └──────────┬──────────┘
            │
            ▼
-┌─────────────────────────────────────────┐
-│            Resources Created            │
-├──────────────┬──────────────┬───────────┤
-│ VM Tags      │ NSX Groups   │ Services  │
-└──────────────┴──────────────┴───────────┘
+┌───────────────────────────────────────────────────────────────┐
+│                    Resources Created                          │
+├──────────────┬──────────────┬───────────────┬────────────────┐
+│ VM Tags      │ NSX Groups   │ Services      │ Context Profiles│
+└──────────────┴──────────────┴───────────────┴────────────────┘
            │
            ▼
 ┌─────────────────────────────────────────┐
@@ -414,6 +466,11 @@ terraform output tenant_tags
    terraform output context_profiles
    ```
 
+5. **Services**: View all services (predefined and custom)
+   ```bash
+   terraform output services
+   ```
+
 ### Using Outputs for Integration
 
 Outputs can be used for integration with other systems or for documentation:
@@ -428,10 +485,6 @@ Outputs can be used for integration with other systems or for documentation:
    POLICY_ID=$(terraform output -raw 'policy_ids.wld01.application_policy')
    # Use the policy ID in scripts or other tools
    ```
-
-### Output Structure
-
-Each module exposes specific outputs that provide detailed information about the created resources. The complete list of available outputs can be found in the README.md documentation.
 
 ### Note about Empty Emergency Groups
 

@@ -22,13 +22,21 @@ provider "nsxt" {
 
 # Load YAML files for all tenants
 locals {
-  # Create a map of tenant configurations
-  tenant_configs = {
+  # First, define the file paths
+  tenant_file_paths = {
     for tenant_id in var.tenants : tenant_id => {
       inventory_file = coalesce(var.inventory_file, "./tenants/${tenant_id}/inventory.yaml")
       authorized_flows_file = coalesce(var.authorized_flows_file, "./tenants/${tenant_id}/authorized-flows.yaml")
-      inventory = yamldecode(file(coalesce(var.inventory_file, "./tenants/${tenant_id}/inventory.yaml")))
-      authorized_flows = yamldecode(file(coalesce(var.authorized_flows_file, "./tenants/${tenant_id}/authorized-flows.yaml")))
+    }
+  }
+  
+  # Then, create the tenant configs using the file paths
+  tenant_configs = {
+    for tenant_id in var.tenants : tenant_id => {
+      inventory_file = local.tenant_file_paths[tenant_id].inventory_file
+      authorized_flows_file = local.tenant_file_paths[tenant_id].authorized_flows_file
+      inventory = yamldecode(file(local.tenant_file_paths[tenant_id].inventory_file))
+      authorized_flows = yamldecode(file(local.tenant_file_paths[tenant_id].authorized_flows_file))
     }
   }
 }
@@ -72,6 +80,7 @@ module "services" {
   
   tenant_id       = each.key
   authorized_flows = each.value.authorized_flows
+  inventory       = each.value.inventory
   
   depends_on = [module.groups]
   
@@ -88,6 +97,7 @@ module "context_profiles" {
   
   tenant_id       = each.key
   authorized_flows = each.value.authorized_flows
+  inventory       = each.value.inventory
   
   depends_on = [module.groups]
   
@@ -104,6 +114,7 @@ module "policies" {
   
   tenant_id       = each.key
   authorized_flows = each.value.authorized_flows
+  inventory       = each.value.inventory
   
   groups = {
     tenant_group_id         = module.groups[each.key].tenant_group_id

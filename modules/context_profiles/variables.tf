@@ -6,4 +6,9 @@ variable "tenant_id" {
 variable "authorized_flows" {
   description = "Authorized flows configuration"
   type        = any
+}
+
+variable "inventory" {
+  description = "Inventory configuration"
+  type        = any
 } 

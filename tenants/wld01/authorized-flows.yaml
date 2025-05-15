@@ -38,9 +38,7 @@ wld01:
         - app-wld01-test-web
       services:
         - ICMPv4
-      ports:
-        - 443
-      protocol: tcp
+        - HTTPS
       scope_enabled: true  
     - name: Allow jumphost to ten-wld01 servers on ICMPv4
       source: ext-wld01-jumphosts
@@ -48,9 +46,6 @@ wld01:
         - ten-wld01
       services:
         - ICMPv4
-      ports:
-        - 445
-      protocol: tcp
       scope_enabled: true  
     - name: Allow web servers to application servers on port 8443
       source: 
@@ -63,9 +58,8 @@ wld01:
         - app-wld01-test-application
       services:
         - ICMPv4
-      ports: 
-        - 8443
-      protocol: tcp
+      custom_services:  
+        - svc-wld01-custom-service-name1
       scope_enabled: true  
     - name: Allow application servers to database servers on port 3306
       source: 
@@ -78,18 +72,15 @@ wld01:
         - app-wld01-test-database
       services:
         - ICMPv4
-      ports:
-        - 3306
-      protocol: tcp
+        - MySQL
       scope_enabled: true  
     - name: Allow wld01 servers to external DNS on port 53
       source: 
         - ten-wld01
       destination: 
         - ext-wld01-dns
-      ports:
-        - 53
-      protocol: udp
+      services:
+        - DNS-TCP
       scope_enabled: true  
     - name: Example of context profiles
       source: 
@@ -98,20 +89,8 @@ wld01:
         - ext-wld01-dns
       context_profiles:
         - DNS
-        - SSL 
-      custom_context_profiles:  
-        cp-wld01-custom-context-profile-name1: 
-          app_id: 
-            - "ACTIVDIR"   
-            - "AMQP"   
-          domain:
-            - "*.microsoft.com"      
-            - "*.office365.com"      
-            - "*.teams.microsoft.com"
-            - "*.vkernel.nl"         
-        cp-wld01-custom-context-profile-name2: 
-          app_id: 
-            - "AMQP"  
-          domain:
-            - "*.microsoft.com"      
+        - SSL
+      custom_context_profiles:
+        - cp-wld01-custom-context-profile-name2
+        - cp-wld01-custom-context-profile-name3
       scope_enabled: true  

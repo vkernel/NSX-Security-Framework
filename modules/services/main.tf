@@ -15,6 +15,7 @@ data "nsxt_policy_service" "predefined_services" {
 locals {
   tenant_key = var.tenant_id
   tenant_data = var.authorized_flows[local.tenant_key]
+  tenant_inventory = var.inventory[local.tenant_key]
   
   # Extract all predefined service names from application policies
   predefined_service_names = distinct(flatten([
@@ -22,38 +23,32 @@ locals {
       try(rule.services, [])
   ]))
   
-  # Extract unique custom service definitions from application policies
-  service_definitions = distinct(flatten([
-    # Process rules that have only protocol and ports (no services)
-    [
-      for rule in try(local.tenant_data.application_policy, []) : {
-        protocol = rule.protocol
-        ports    = rule.ports
-      }
-      if try(rule.protocol, null) != null && try(rule.ports, null) != null && 
-         try(rule.services, null) == null
-    ],
-    # Process rules that have both services and protocol/ports 
-    [
-      for rule in try(local.tenant_data.application_policy, []) : {
-        protocol = rule.protocol
-        ports    = rule.ports
-      }
-      if try(rule.protocol, null) != null && try(rule.ports, null) != null && 
-         try(rule.services, null) != null
-    ]
+  # Extract custom service references from application policies
+  custom_service_references = distinct(flatten([
+    for rule in try(local.tenant_data.application_policy, []) :
+      try(rule.custom_services, [])
   ]))
+  
+  # Get custom service definitions from inventory file
+  custom_service_definitions = [
+    for service_name, service_attrs in try(local.tenant_inventory.custom_services, {}) : {
+      name = service_name
+      protocol = try(service_attrs.protocol, "tcp")
+      ports = try(service_attrs.ports, [])
+    }
+    if service_attrs != null && try(length(service_attrs.ports), 0) > 0
+  ]
 }
 
-# Create NSX services for each unique protocol and port combination
-resource "nsxt_policy_service" "service" {
+# Create NSX services for each custom service definition
+resource "nsxt_policy_service" "custom_service" {
   for_each = {
-    for idx, service in local.service_definitions : 
-      "${service.protocol}_${join("_", [for port in service.ports : tostring(port)])}" => service
+    for service in local.custom_service_definitions : 
+      service.name => service
   }
   
-  display_name = "svc-${local.tenant_key}-${each.key}"
-  description  = "Service for ${each.key}"
+  display_name = each.key
+  description  = "Custom service for ${each.key}"
   
   dynamic "l4_port_set_entry" {
     for_each = each.value.protocol == "tcp" || each.value.protocol == "udp" ? [each.value] : []

@@ -10,6 +10,7 @@ This Terraform project implements a robust security framework for VMware NSX env
 - Environment isolation with controlled cross-environment communication
 - Application-centric security policies with granular access controls
 - Support for external services and communication
+- Custom context profiles and services defined in inventory
 
 ## Architecture
 
@@ -25,7 +26,7 @@ Each tenant requires two YAML configuration files:
 
 ### 1. Inventory Configuration (inventory.yaml)
 
-Defines all resources (VMs, external services) organized by tenant, environment, and application tier.
+Defines all resources (VMs, external services) organized by tenant, environment, and application tier, as well as custom service and context profile definitions.
 
 ```yaml
 tenant_id:
@@ -41,11 +42,24 @@ tenant_id:
   emergency:
     {tenant}-emergency:
       - vm-name-1
+  custom_context_profiles:
+    cp-{tenant}-custom-profile-name:
+      app_id: 
+        - "ACTIVDIR"   
+        - "AMQP"   
+      domain:
+        - "*.microsoft.com"      
+        - "*.office365.com"
+  custom_services:  
+    svc-{tenant}-custom-service-name:
+      ports:
+        - 8443
+      protocol: tcp
 ```
 
 ### 2. Authorized Flows Configuration (authorized-flows.yaml)
 
-Defines the allowed and blocked communication patterns between resources.
+Defines the allowed and blocked communication patterns between resources, using references to custom services and context profiles.
 
 ```yaml
 tenant_id:
@@ -70,10 +84,15 @@ tenant_id:
         - app-{tenant}-{env}-{component1}
       destination: 
         - app-{tenant}-{env}-{component2}
-      ports:
-        - 443
-      protocol: tcp
-      scope_enabled: true   true)
+      services:
+        - HTTPS
+      custom_services:
+        - svc-{tenant}-custom-service-name
+      context_profiles:
+        - SSL
+      custom_context_profiles:
+        - cp-{tenant}-custom-profile-name
+      scope_enabled: true
 ```
 
 ## Tagging Strategy
@@ -173,7 +192,8 @@ Based on the tagging strategy, the following security groups are created:
 │                             YAML Configuration                          │
 ├────────────────────────────────┬────────────────────────────────────────┤
 │         inventory.yaml         │       authorized-flows.yaml            │
-│  (VM and tag definitions)      │  (Policy and rule definitions)         │
+│  (VM, service, and context     │  (Policy and rule definitions)         │
+│   profile definitions)         │                                        │
 └──────────────┬─────────────────┴─────────────────┬────────────────────┬─┘
                │                                   │                    │
                ▼                                   │                    │
@@ -193,14 +213,20 @@ Based on the tagging strategy, the following security groups are created:
                │           │     Services Module      │◄────────────────┘
                │           │ (Creates predefined &    │
                │           │  custom service defs)    │
+               │           │                          │
                │           └─────────────┬────────────┘
                │                         │
+               │           ┌──────────────────────────┐
+               │           │ Context Profiles Module  │◄────────────────┘
+               │           │ (Creates predefined &    │
+               │           │  custom context profiles)│
+               │           └─────────────┬────────────┘
                │                         │
                ▼                         ▼
 ┌─────────────────────────────────────────────────────┐
 │                Policies Module                      │
 │ (Creates security policies and firewall rules       │
-│  using groups and services)                         │
+│  using groups, services and context profiles)       │
 └─────────────────────────────────────────────────────┘
 ```
 
@@ -232,6 +258,7 @@ The framework is organized into Terraform modules:
 - **tags**: Creates and manages NSX tags for all resources
 - **groups**: Creates NSX security groups based on tags and IP addresses
 - **services**: Defines NSX services for protocol and port combinations
+- **context_profiles**: Creates and manages context profiles for deeper application inspection
 - **policies**: Creates security policies and firewall rules
 
 ## Usage
@@ -280,44 +307,25 @@ To use predefined services in your security policies, specify them in the `servi
     - ICMPv4
 ```
 
-This approach can be combined with custom port/protocol definitions. When you do this, both the predefined services AND the custom port/protocol will be included in the security rule:
+### Custom Services
+
+Custom services are defined in the inventory.yaml file and referenced in the authorized-flows.yaml file:
 
 ```yaml
-- name: Example rule with custom and predefined services
+# In inventory.yaml
+custom_services:  
+  svc-wld01-custom-service-name:
+    ports:
+      - 8443
+    protocol: tcp
+
+# In authorized-flows.yaml
+- name: Example rule with custom services
   source: ext-wld01-jumphosts
   destination: app-wld01-prod-web
-  services:
-    - HTTPS
-    - SSH
-  ports:
-    - 8443
-    - 8080
-  protocol: tcp
+  custom_services:
+    - svc-wld01-custom-service-name
 ```
-
-In this example, the rule will allow traffic using the predefined HTTPS and SSH services, plus TCP traffic on ports 8443 and 8080.
-
-### Finding Predefined Services in NSX
-
-To view all predefined services available in your NSX instance:
-
-1. Log in to the NSX Manager UI
-2. Navigate to Networking → Services → Service Definitions
-3. The list will show both system-defined (predefined) services and any custom services you've created
-4. You can filter the list to show only system-defined services
-
-### Important Notes:
-
-1. **Availability**: The predefined services available can vary between NSX versions. The examples above are based on NSX 4.2.1.
-
-2. **Service Names**: The exact name shown in the NSX UI must be used in your configuration.
-
-3. **API Access**: You can also get the full list of services through the NSX API:
-   ```
-   GET https://your-nsx-manager/api/v1/infra/services
-   ```
-
-4. **Export Option**: The NSX UI allows you to export the complete list of services to a CSV file for reference.
 
 ## Context Profiles Usage
 
@@ -339,77 +347,27 @@ To use a predefined context profile in a security rule:
   scope_enabled: true
 ```
 
-### Creating Custom Context Profiles
+### Custom Context Profiles
 
-Custom context profiles can be created using App IDs or Domain Names:
-
-#### Using Predefined App IDs:
+Custom context profiles are defined in the inventory.yaml file and referenced in the authorized-flows.yaml file:
 
 ```yaml
-- name: Custom App ID Profile
-  source: app-source-group
-  destination: app-destination-group
-  context_profile_attributes:
-    app_id:
-      - "HTTPS"
-      - "ACTIVEDIR" 
-```
-
-#### Using Predefined Domain Names:
-
-```yaml
-- name: Custom Domain Profile
-  source: app-source-group
-  destination: app-destination-group
-  context_profile_attributes:
+# In inventory.yaml
+custom_context_profiles:
+  cp-wld01-custom-context-profile-name:
+    app_id: 
+      - "ACTIVDIR"   
+      - "AMQP"   
     domain:
-      - "*.microsoft.com"
+      - "*.microsoft.com"      
       - "*.office365.com"
-```
 
-#### Combining Both:
-
-```yaml
-- name: Combined Profile
+# In authorized-flows.yaml
+- name: Example with custom context profiles
   source: app-source-group
   destination: app-destination-group
-  context_profile_attributes:
-    app_id:
-      - "HTTPS"
-    domain:
-      - "*.microsoft.com"
-```
-
-#### Using Multiple Context Profiles
-
-NSX-T supports multiple context profiles in a single firewall rule only when Services is set to ANY. The framework automatically sets the `services` list to empty (interpreted as ANY) when both `context_profiles` and `context_profile_attributes` are specified. If you need to include specific service or port requirements, limit to a single context profile per rule.
-
-### Retrieving Available App IDs and Domain Names
-
-The NSX infrastructure provides a wide range of predefined App IDs and Domain Name patterns that can be used in your context profiles. You can view them in the NSX Manager UI:
-
-1. Log in to the NSX Manager UI
-2. Navigate to Security → Profiles → Context Profiles
-3. The list will show both system-defined (predefined) profiles and any custom profiles you've created
-
-Common App IDs include: ACTIVEDIR, ACTIVESYNC, DNS, FTP, HTTP, HTTPS, IMAP, LDAP, MYSQL, SMTP, SSH, SSL, etc.
-
-Common Domain patterns include: *.microsoft.com, *.office365.com, *.salesforce.com, *.slack.com, etc.
-
-```yaml
-# Example of using predefined App IDs
-context_profile_attributes:
-  app_id:
-    - "HTTPS"
-    - "SSL"
-```
-
-```yaml
-# Example of using domain patterns
-context_profile_attributes:
-  domain:
-    - "*.microsoft.com"
-    - "*.office365.com"
+  custom_context_profiles:
+    - cp-wld01-custom-context-profile-name
 ```
 
 ### Emergency Policy
@@ -455,10 +413,15 @@ tenant_id:
         - app-{tenant}-{env}-{component1}
       destination: 
         - app-{tenant}-{env}-{component2}
-      ports:
-        - 443
-      protocol: tcp
-      scope_enabled: true   true)
+      services:
+        - HTTPS
+      custom_services:
+        - svc-{tenant}-custom-service-name
+      context_profiles:
+        - SSL
+      custom_context_profiles:
+        - cp-{tenant}-custom-profile-name
+      scope_enabled: true
 ```
 
 ## Module Structure and Outputs

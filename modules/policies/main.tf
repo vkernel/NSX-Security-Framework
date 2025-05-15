@@ -45,24 +45,18 @@ locals {
       name          = try(rule.name, "app-rule-${index(local.application_policy, rule) + 1}")
       sources       = rule.source
       destinations  = rule.destination
-      # Create a list of service keys combining both predefined services and custom services
-      service_keys  = concat(
-        # Add predefined services if they exist
-        try(rule.services, []),
-        # Add custom service key if protocol and ports exist
-        try(rule.protocol, null) != null && try(rule.ports, null) != null ?
-          ["${rule.protocol}_${join("_", [for port in rule.ports : tostring(port)])}"] : []
-      )
+      # Add predefined services if they exist
+      service_keys  = try(rule.services, [])
+      # Add custom services if they exist (new format)
+      custom_services = try(rule.custom_services, [])
       # Process both predefined and custom context profiles
       predefined_profiles = try(rule.context_profiles, [])
-      # Check for custom context profiles (new nested structure)
-      custom_profiles = try(rule.custom_context_profiles, {})
-      # Get keys of all custom profiles for this rule
-      custom_profile_keys = try(keys(rule.custom_context_profiles), [])
+      # Get list of custom context profile references (new format)
+      custom_profiles = try(rule.custom_context_profiles, [])
       # Check if we have any custom profiles
-      has_custom_profiles = length(try(keys(rule.custom_context_profiles), [])) > 0
+      has_custom_profiles = length(try(rule.custom_context_profiles, [])) > 0
       # Check if we have both predefined and custom profiles
-      has_multiple_profiles = length(try(rule.context_profiles, [])) > 0 && length(try(keys(rule.custom_context_profiles), [])) > 0
+      has_multiple_profiles = length(try(rule.context_profiles, [])) > 0 || length(try(rule.custom_context_profiles, [])) > 0
       action        = "ALLOW"
       scope_enabled = try(rule.scope_enabled, true)
     }
@@ -274,10 +268,18 @@ resource "nsxt_policy_security_policy" "application_policy" {
       # Handle services - can be predefined or custom
       # If we have multiple context profiles, we need to set services to ANY (empty list)
       services = rule.value.has_multiple_profiles ? [] : flatten([
-        for service_key in rule.value.service_keys : [
-          try(var.services[service_key].path, "")
+        # Add predefined services
+        [
+          for service_key in rule.value.service_keys : 
+          lookup(var.services, service_key, null) != null ? 
+            [lookup(var.services, service_key).path] : []
+        ],
+        # Add custom services
+        [
+          for service_key in rule.value.custom_services : 
+          lookup(var.services, service_key, null) != null ? 
+            [lookup(var.services, service_key).path] : []
         ]
-        if try(var.services[service_key].path, "") != ""
       ])
       
       # Handle context profiles - combine predefined and custom profiles in one list
@@ -288,13 +290,12 @@ resource "nsxt_policy_security_policy" "application_policy" {
           lookup(var.context_profiles, profile_name, null) != null ? 
             [lookup(var.context_profiles, profile_name)] : []
         ]),
-        # Add custom profiles if they exist using the new format
-        rule.value.has_custom_profiles ? 
-          flatten([
-            for profile_key in rule.value.custom_profile_keys :
-            lookup(var.context_profiles, profile_key, null) != null ?
-              [lookup(var.context_profiles, profile_key)] : []
-          ]) : []
+        # Add custom profiles using the new flat list format
+        flatten([
+          for profile_name in rule.value.custom_profiles : 
+          lookup(var.context_profiles, profile_name, null) != null ? 
+            [lookup(var.context_profiles, profile_name)] : []
+        ])
       )
       
       action           = rule.value.action
