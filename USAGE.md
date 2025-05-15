@@ -372,4 +372,67 @@ The following diagram illustrates the overall deployment process:
 ├──────────────┬──────────────┬───────────┤
 │ Emergency    │ Environment  │ Application│
 └──────────────┴──────────────┴───────────┘
-``` 
+```
+
+## Working with Outputs
+
+After deployment, Terraform provides various outputs that can help you understand and validate the created resources.
+
+### Viewing Outputs
+
+To view all outputs from a Terraform deployment:
+
+```bash
+terraform output
+```
+
+To view a specific output:
+
+```bash
+terraform output tenant_tags
+```
+
+### Useful Outputs for Inspection
+
+1. **Rule Counts**: View how many rules were created for each policy type
+   ```bash
+   terraform output rule_counts
+   ```
+
+2. **Policy IDs**: Get the policy IDs for integration with other systems
+   ```bash
+   terraform output policy_ids
+   ```
+
+3. **Groups**: View the created NSX groups and their paths
+   ```bash
+   terraform output application_groups
+   ```
+
+4. **Context Profiles**: View the custom and predefined context profiles
+   ```bash
+   terraform output context_profiles
+   ```
+
+### Using Outputs for Integration
+
+Outputs can be used for integration with other systems or for documentation:
+
+1. **Export to JSON**: 
+   ```bash
+   terraform output -json > nsx_security_resources.json
+   ```
+
+2. **Usage in Scripts**:
+   ```bash
+   POLICY_ID=$(terraform output -raw 'policy_ids.wld01.application_policy')
+   # Use the policy ID in scripts or other tools
+   ```
+
+### Output Structure
+
+Each module exposes specific outputs that provide detailed information about the created resources. The complete list of available outputs can be found in the README.md documentation.
+
+### Note about Empty Emergency Groups
+
+Emergency policies can reference emergency groups even when they have no VMs assigned. This allows you to add VMs to these groups later without requiring changes to the policies or infrastructure. 

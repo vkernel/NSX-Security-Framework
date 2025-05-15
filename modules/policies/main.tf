@@ -56,13 +56,13 @@ locals {
       # Process both predefined and custom context profiles
       predefined_profiles = try(rule.context_profiles, [])
       # Check for custom context profiles (new nested structure)
-      custom_profiles = try(rule.custom_context_profile_attributes, {})
+      custom_profiles = try(rule.custom_context_profiles, {})
       # Get keys of all custom profiles for this rule
-      custom_profile_keys = try(keys(rule.custom_context_profile_attributes), [])
+      custom_profile_keys = try(keys(rule.custom_context_profiles), [])
       # Check if we have any custom profiles
-      has_custom_profiles = length(try(keys(rule.custom_context_profile_attributes), [])) > 0
+      has_custom_profiles = length(try(keys(rule.custom_context_profiles), [])) > 0
       # Check if we have both predefined and custom profiles
-      has_multiple_profiles = length(try(rule.context_profiles, [])) > 0 && length(try(keys(rule.custom_context_profile_attributes), [])) > 0
+      has_multiple_profiles = length(try(rule.context_profiles, [])) > 0 && length(try(keys(rule.custom_context_profiles), [])) > 0
       action        = "ALLOW"
       scope_enabled = try(rule.scope_enabled, true)
     }

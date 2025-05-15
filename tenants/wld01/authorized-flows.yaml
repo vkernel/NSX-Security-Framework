@@ -99,19 +99,19 @@ wld01:
       context_profiles:
         - DNS
         - SSL 
-      custom_context_profile_attributes:  
+      custom_context_profiles:  
         cp-wld01-custom-context-profile-name1: 
           app_id: 
-            - "ACTIVDIR"   # Predefined App ID
-            - "AMQP"   # Predefined App ID
+            - "ACTIVDIR"   
+            - "AMQP"   
           domain:
-            - "*.microsoft.com"      # Predefined domain pattern
-            - "*.office365.com"      # Predefined domain pattern
-            - "*.teams.microsoft.com" # Predefined domain pattern
-            - "*.vkernel.nl"         # Custom domain pattern
+            - "*.microsoft.com"      
+            - "*.office365.com"      
+            - "*.teams.microsoft.com"
+            - "*.vkernel.nl"         
         cp-wld01-custom-context-profile-name2: 
-          app_id: # Predefined App ID
-            - "AMQP"   # Predefined App ID
+          app_id: 
+            - "AMQP"  
           domain:
-            - "*.microsoft.com"      # Predefined domain pattern
+            - "*.microsoft.com"      
       scope_enabled: true  

@@ -26,4 +26,25 @@ output "application_groups" {
 output "services" {
   description = "Services created for each tenant"
   value       = { for tenant_id, service in module.services : tenant_id => service.services }
+}
+
+output "context_profiles" {
+  description = "Context profiles created for each tenant"
+  value       = { for tenant_id, profile in module.context_profiles : tenant_id => profile.context_profiles }
+}
+
+output "policy_ids" {
+  description = "IDs of security policies created for each tenant"
+  value       = {
+    for tenant_id, policy in module.policies : tenant_id => {
+      emergency_policy   = policy.emergency_policy_id
+      environment_policy = policy.environment_policy_id
+      application_policy = policy.application_policy_id
+    }
+  }
+}
+
+output "rule_counts" {
+  description = "Number of rules created for each policy type and tenant"
+  value       = { for tenant_id, policy in module.policies : tenant_id => policy.rule_count }
 } 

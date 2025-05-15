@@ -27,7 +27,7 @@ locals {
   custom_profile_definitions = flatten([
     for rule in try(local.tenant_data.application_policy, []) :
       [
-        for profile_name, profile_attrs in try(rule.custom_context_profile_attributes, {}) : {
+        for profile_name, profile_attrs in try(rule.custom_context_profiles, {}) : {
           name = profile_name
           app_ids = try(profile_attrs.app_id, [])
           domains = try(profile_attrs.domain, [])
@@ -65,22 +65,4 @@ resource "nsxt_policy_context_profile" "custom_profile" {
       value = toset(each.value.domains)
     }
   }
-}
-
-# Output map of all context profiles (both predefined and custom)
-# The key is the profile name used in YAML and the value is the NSX path
-output "context_profiles" {
-  description = "Map of context profile names to NSX paths"
-  value = merge(
-    # For predefined profiles, map name -> path 
-    {
-      for name, profile in data.nsxt_policy_context_profile.predefined_profiles :
-      name => profile.path
-    },
-    # For custom profiles, map name -> path
-    {
-      for name, profile in nsxt_policy_context_profile.custom_profile :
-      name => profile.path
-    }
-  )
 } 

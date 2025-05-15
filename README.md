@@ -460,3 +460,63 @@ tenant_id:
       protocol: tcp
       scope_enabled: true   true)
 ```
+
+## Module Structure and Outputs
+
+The NSX Security Framework is organized into modular components, each responsible for specific NSX resources:
+
+### Module Organization
+
+1. **Tags Module** - Manages VM tags and tag-based grouping
+2. **Groups Module** - Creates and manages NSX groups for applications, environments, and services
+3. **Services Module** - Handles NSX service definitions used in security policies
+4. **Context Profiles Module** - Manages application context profiles for deeper traffic inspection
+5. **Policies Module** - Creates and configures security policies and rules
+
+### Available Outputs
+
+Each module exposes specific outputs that can be used for reference or in other modules:
+
+#### Root-level Outputs
+
+- `tenant_tags` - Tags created for each tenant
+- `tenant_vms` - List of VMs in each tenant
+- `tenant_group_ids` - ID of each tenant group
+- `environment_groups` - Environment groups for each tenant
+- `application_groups` - Application groups for each tenant
+- `services` - Services created for each tenant
+- `context_profiles` - Context profiles created for each tenant
+- `policy_ids` - IDs of security policies created for each tenant
+- `rule_counts` - Number of rules created for each policy type and tenant
+
+#### Module-specific Outputs
+
+- **Tags Module**
+  - `tenant_tag` - The tag used for the tenant
+  - `tenant_vms` - List of VMs in the tenant
+
+- **Groups Module**
+  - `tenant_group_id` - ID of the tenant group
+  - `environment_groups` - IDs of environment groups
+  - `application_groups` - IDs of application groups
+  - `sub_application_groups` - IDs of sub-application groups
+  - `external_service_groups` - IDs of external service groups
+  - `emergency_groups` - IDs of emergency groups
+
+- **Services Module**
+  - `services` - Map of service names to service details
+
+- **Context Profiles Module**
+  - `predefined_context_profiles` - Map of predefined context profiles
+  - `custom_context_profiles` - Map of custom context profiles
+  - `all_context_profiles` - Combined map of all context profiles
+  - `context_profiles` - Map of context profile names to NSX paths
+
+- **Policies Module**
+  - `emergency_policy_id` - ID of the emergency security policy
+  - `environment_policy_id` - ID of the environment security policy
+  - `application_policy_id` - ID of the application security policy
+  - `policy_count` - Count of policies created for each tenant
+  - `rule_count` - Count of rules created for each policy type
+
+These outputs can be useful for debugging, reporting, or integrating with other systems.
