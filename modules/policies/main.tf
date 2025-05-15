@@ -55,14 +55,14 @@ locals {
       )
       # Process both predefined and custom context profiles
       predefined_profiles = try(rule.context_profiles, [])
-      has_custom_profile = (try(rule.context_profile_attributes.app_id, null) != null || 
-                            try(rule.context_profile_attributes.domain, null) != null)
-      custom_profile_key = rule.name
+      # Check for custom context profiles (new nested structure)
+      custom_profiles = try(rule.custom_context_profile_attributes, {})
+      # Get keys of all custom profiles for this rule
+      custom_profile_keys = try(keys(rule.custom_context_profile_attributes), [])
+      # Check if we have any custom profiles
+      has_custom_profiles = length(try(keys(rule.custom_context_profile_attributes), [])) > 0
       # Check if we have both predefined and custom profiles
-      has_multiple_profiles = length(try(rule.context_profiles, [])) > 0 && (
-        try(rule.context_profile_attributes.app_id, null) != null || 
-        try(rule.context_profile_attributes.domain, null) != null
-      )
+      has_multiple_profiles = length(try(rule.context_profiles, [])) > 0 && length(try(keys(rule.custom_context_profile_attributes), [])) > 0
       action        = "ALLOW"
       scope_enabled = try(rule.scope_enabled, true)
     }
@@ -176,8 +176,23 @@ resource "nsxt_policy_security_policy" "environment_policy" {
       display_name       = rule.value.name
       # Conditionally set scope based on scope_enabled flag
       scope              = rule.value.scope_enabled ? [var.groups.tenant_group_id] : []
-      source_groups      = [var.groups.environment_groups[rule.value.source]]
-      destination_groups = [var.groups.environment_groups[rule.value.destination]]
+      
+      # Handle source as either string or list
+      source_groups = flatten([
+        for src in try(tolist(rule.value.source), [rule.value.source]) : [
+          var.groups.environment_groups[src]
+        ]
+        if contains(keys(var.groups.environment_groups), src)
+      ])
+      
+      # Handle destination as either string or list
+      destination_groups = flatten([
+        for dst in try(tolist(rule.value.destination), [rule.value.destination]) : [
+          var.groups.environment_groups[dst]
+        ]
+        if contains(keys(var.groups.environment_groups), dst)
+      ])
+      
       action             = rule.value.action
       logged             = true
     }
@@ -256,7 +271,7 @@ resource "nsxt_policy_security_policy" "application_policy" {
         )
       ])
       
-      # Handle services - can be predefined or custom 
+      # Handle services - can be predefined or custom
       # If we have multiple context profiles, we need to set services to ANY (empty list)
       services = rule.value.has_multiple_profiles ? [] : flatten([
         for service_key in rule.value.service_keys : [
@@ -273,10 +288,13 @@ resource "nsxt_policy_security_policy" "application_policy" {
           lookup(var.context_profiles, profile_name, null) != null ? 
             [lookup(var.context_profiles, profile_name)] : []
         ]),
-        # Add custom profile if it exists
-        rule.value.has_custom_profile ? 
-          (lookup(var.context_profiles, rule.value.custom_profile_key, null) != null ? 
-            [lookup(var.context_profiles, rule.value.custom_profile_key)] : []) : []
+        # Add custom profiles if they exist using the new format
+        rule.value.has_custom_profiles ? 
+          flatten([
+            for profile_key in rule.value.custom_profile_keys :
+            lookup(var.context_profiles, profile_key, null) != null ?
+              [lookup(var.context_profiles, profile_key)] : []
+          ]) : []
       )
       
       action           = rule.value.action

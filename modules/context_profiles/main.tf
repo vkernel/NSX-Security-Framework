@@ -23,27 +23,32 @@ locals {
   ]))
   
   # Extract custom context profile definitions from application policies
-  custom_profile_definitions = [
-    for rule in try(local.tenant_data.application_policy, []) : {
-      name = rule.name
-      app_ids = try(rule.context_profile_attributes.app_id, [])
-      domains = try(rule.context_profile_attributes.domain, [])
-    }
-    if try(rule.context_profile_attributes, null) != null && 
-      (try(length(rule.context_profile_attributes.app_id), 0) > 0 || 
-       try(length(rule.context_profile_attributes.domain), 0) > 0)
-  ]
+  # This now handles multiple context profiles per rule
+  custom_profile_definitions = flatten([
+    for rule in try(local.tenant_data.application_policy, []) :
+      [
+        for profile_name, profile_attrs in try(rule.custom_context_profile_attributes, {}) : {
+          name = profile_name
+          app_ids = try(profile_attrs.app_id, [])
+          domains = try(profile_attrs.domain, [])
+        }
+        if profile_attrs != null && (
+          try(length(profile_attrs.app_id), 0) > 0 || 
+          try(length(profile_attrs.domain), 0) > 0
+        )
+      ]
+  ])
 }
 
 # Create NSX context profiles for each custom profile definition
 resource "nsxt_policy_context_profile" "custom_profile" {
   for_each = {
-    for idx, profile in local.custom_profile_definitions : 
-      "profile-${local.tenant_key}-${profile.name}" => profile
+    for profile in local.custom_profile_definitions : 
+      profile.name => profile
   }
   
-  display_name = "cp-${local.tenant_key}-${each.value.name}"
-  description  = "Custom context profile for ${each.value.name}"
+  display_name = each.key
+  description  = "Custom context profile for ${each.key}"
   
   # Add App IDs if specified - only one app_id block is allowed with multiple values
   dynamic "app_id" {
@@ -75,7 +80,7 @@ output "context_profiles" {
     # For custom profiles, map name -> path
     {
       for name, profile in nsxt_policy_context_profile.custom_profile :
-      trimsuffix(trimprefix(name, "profile-${local.tenant_key}-"), "") => profile.path
+      name => profile.path
     }
   )
 } 

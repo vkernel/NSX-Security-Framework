@@ -10,24 +10,30 @@ wld02:
   environment_policy:
     allowed_communications:
       - name: Allow dev environment to acc environment
-        source: env-wld02-dev
-        destination: env-wld02-acc
+        source: 
+          - env-wld02-dev
+        destination: 
+          - env-wld02-acc
         scope_enabled: true  
     blocked_communications:
       - name: Block acc environment from dev environment
-        source: env-wld02-acc
-        destination: env-wld02-dev
+        source: 
+          - env-wld02-acc
+        destination: 
+          - env-wld02-dev
         scope_enabled: true 
   application_policy:
     - name: Allow jumphost to ten-wld02 on port 22
-      source: ext-wld02-jumphosts
+      source: 
+        - ext-wld02-jumphosts
       destination: 
         - ten-wld02
       services:
         - SSH
       scope_enabled: false  
     - name: Allow jumphost to web servers on port 443
-      source: ext-wld02-jumphosts
+      source: 
+        - ext-wld02-jumphosts
       destination: 
         - app-wld02-dev-3holapp-web
         - app-wld02-dev-web
@@ -69,8 +75,10 @@ wld02:
       protocol: tcp
       scope_enabled: true  
     - name: Allow wld02 servers to external DNS on port 53
-      source: ten-wld02
-      destination: ext-wld02-dns
+      source: 
+        - ten-wld02
+      destination: 
+        - ext-wld02-dns
       ports:
         - 53  
       protocol: udp

@@ -10,13 +10,17 @@ wld01:
   environment_policy:
     allowed_communications:
       - name: Allow prod environment to test environment
-        source: env-wld01-prod
-        destination: env-wld01-test
+        source: 
+          - env-wld01-prod
+        destination: 
+          - env-wld01-test
         scope_enabled: true  
     blocked_communications:
       - name: Block test environment from prod environment
-        source: env-wld01-test
-        destination: env-wld01-prod
+        source: 
+          - env-wld01-test
+        destination: 
+          - env-wld01-prod
         scope_enabled: true  
   application_policy:
     - name: Allow jumphost to ten-wld01 on port 22
@@ -79,25 +83,35 @@ wld01:
       protocol: tcp
       scope_enabled: true  
     - name: Allow wld01 servers to external DNS on port 53
-      source: ten-wld01
-      destination: ext-wld01-dns
+      source: 
+        - ten-wld01
+      destination: 
+        - ext-wld01-dns
       ports:
         - 53
       protocol: udp
       scope_enabled: true  
     - name: Example of context profiles
-      source: ten-wld01
-      destination: ext-wld01-dns
+      source: 
+        - ten-wld01
+      destination: 
+        - ext-wld01-dns
       context_profiles:
         - DNS
         - SSL 
-      context_profile_attributes:   
-        app_id: 
-          - "ACTIVDIR"   # Predefined App ID
-          - "AMQP"   # Predefined App ID
-        domain:
-          - "*.microsoft.com"      # Predefined domain pattern
-          - "*.office365.com"      # Predefined domain pattern
-          - "*.teams.microsoft.com" # Predefined domain pattern
-          - "*.vkernel.nl"         # Custom domain pattern
+      custom_context_profile_attributes:  
+        cp-wld01-custom-context-profile-name1: 
+          app_id: 
+            - "ACTIVDIR"   # Predefined App ID
+            - "AMQP"   # Predefined App ID
+          domain:
+            - "*.microsoft.com"      # Predefined domain pattern
+            - "*.office365.com"      # Predefined domain pattern
+            - "*.teams.microsoft.com" # Predefined domain pattern
+            - "*.vkernel.nl"         # Custom domain pattern
+        cp-wld01-custom-context-profile-name2: 
+          app_id: # Predefined App ID
+            - "AMQP"   # Predefined App ID
+          domain:
+            - "*.microsoft.com"      # Predefined domain pattern
       scope_enabled: true  
