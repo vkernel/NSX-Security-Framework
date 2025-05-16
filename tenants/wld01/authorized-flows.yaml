@@ -6,6 +6,7 @@ wld01:
         - emg-wld01
       destination: 
         - any
+      action: ALLOW
       scope_enabled: true  
   environment_policy:
     allowed_communications:
@@ -14,6 +15,7 @@ wld01:
           - env-wld01-prod
         destination: 
           - env-wld01-test
+        action: ALLOW
         scope_enabled: true  
     blocked_communications:
       - name: Block test environment from prod environment
@@ -21,32 +23,19 @@ wld01:
           - env-wld01-test
         destination: 
           - env-wld01-prod
+        action: REJECT
         scope_enabled: true  
   application_policy:
-    - name: Allow jumphost to ten-wld01 on port 22
+    - name: Allow jumphost to ten-wld01 on SSH, ICMPv4 and HTTPS
       source: ext-wld01-jumphosts
       destination: 
         - ten-wld01
       services:
         - SSH
-      scope_enabled: false  
-    - name: Allow jumphost to web servers on port 443
-      source: ext-wld01-jumphosts
-      destination: 
-        - app-wld01-prod-3holapp-web
-        - app-wld01-prod-web
-        - app-wld01-test-web
-      services:
         - ICMPv4
         - HTTPS
-      scope_enabled: true  
-    - name: Allow jumphost to ten-wld01 servers on ICMPv4
-      source: ext-wld01-jumphosts
-      destination: 
-        - ten-wld01
-      services:
-        - ICMPv4
-      scope_enabled: true  
+      action: ALLOW
+      scope_enabled: false  
     - name: Allow web servers to application servers on port 8443
       source: 
         - app-wld01-prod-3holapp-web
@@ -56,10 +45,9 @@ wld01:
         - app-wld01-prod-3holapp-application
         - app-wld01-prod-application
         - app-wld01-test-application
-      services:
-        - ICMPv4
       custom_services:  
         - svc-wld01-custom-service-name1
+      action: ALLOW
       scope_enabled: true  
     - name: Allow application servers to database servers on port 3306
       source: 
@@ -71,8 +59,8 @@ wld01:
         - app-wld01-prod-database
         - app-wld01-test-database
       services:
-        - ICMPv4
         - MySQL
+      action: ALLOW
       scope_enabled: true  
     - name: Allow wld01 servers to external DNS on port 53
       source: 
@@ -81,6 +69,7 @@ wld01:
         - ext-wld01-dns
       services:
         - DNS-TCP
+      action: ALLOW
       scope_enabled: true  
     - name: Example of context profiles
       source: 
@@ -93,4 +82,5 @@ wld01:
       custom_context_profiles:
         - cp-wld01-custom-context-profile-name2
         - cp-wld01-custom-context-profile-name3
+      action: ALLOW
       scope_enabled: true  

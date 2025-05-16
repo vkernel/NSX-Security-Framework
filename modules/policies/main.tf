@@ -21,7 +21,7 @@ locals {
       name          = try(rule.name, "allow-${rule.source}-to-${rule.destination}")
       source        = rule.source
       destination   = rule.destination
-      action        = "ALLOW"
+      action        = try(rule.action, "ALLOW")
       scope_enabled = try(rule.scope_enabled, true)
     }
   ]
@@ -31,7 +31,7 @@ locals {
       name          = try(rule.name, "block-${rule.source}-to-${rule.destination}")
       source        = rule.source
       destination   = rule.destination
-      action        = "DROP"
+      action        = try(rule.action, "DROP")
       scope_enabled = try(rule.scope_enabled, true)
     }
   ]
@@ -57,7 +57,7 @@ locals {
       has_custom_profiles = length(try(rule.custom_context_profiles, [])) > 0
       # Check if we have both predefined and custom profiles
       has_multiple_profiles = length(try(rule.context_profiles, [])) > 0 || length(try(rule.custom_context_profiles, [])) > 0
-      action        = "ALLOW"
+      action        = try(rule.action, "ALLOW")
       scope_enabled = try(rule.scope_enabled, true)
     }
   ]
@@ -68,7 +68,7 @@ locals {
       name          = try(rule.name, "emergency-rule-${index(local.emergency_policy, rule) + 1}")
       sources       = rule.source
       destinations  = rule.destination
-      action        = "ALLOW"
+      action        = try(rule.action, "ALLOW")
       scope_enabled = try(rule.scope_enabled, true)
     }
   ]

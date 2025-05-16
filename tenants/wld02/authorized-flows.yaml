@@ -6,6 +6,7 @@ wld02:
         - emg-wld02
       destination: 
         - any
+      action: ALLOW
       scope_enabled: true  
   environment_policy:
     allowed_communications:
@@ -14,6 +15,7 @@ wld02:
           - env-wld02-dev
         destination: 
           - env-wld02-acc
+        action: ALLOW
         scope_enabled: true  
     blocked_communications:
       - name: Block acc environment from dev environment
@@ -21,6 +23,7 @@ wld02:
           - env-wld02-acc
         destination: 
           - env-wld02-dev
+        action: REJECT
         scope_enabled: true 
   application_policy:
     - name: Allow jumphost to ten-wld02 on port 22
@@ -30,6 +33,7 @@ wld02:
         - ten-wld02
       services:
         - SSH
+      action: ALLOW
       scope_enabled: false  
     - name: Allow jumphost to web servers on port 443
       source: 
@@ -41,6 +45,7 @@ wld02:
       services:
         - ICMPv4
         - HTTPS
+      action: ALLOW
       scope_enabled: true  
     - name: Allow web servers to application servers on port 8443
       source: 
@@ -55,6 +60,7 @@ wld02:
         - ICMPv4
       custom_services:
         - svc-wld02-custom-service-name1
+      action: ALLOW
       scope_enabled: true  
     - name: Allow application servers to database servers on port 3306
       source: 
@@ -68,6 +74,7 @@ wld02:
       services:
         - ICMPv4
         - MySQL
+      action: ALLOW
       scope_enabled: true  
     - name: Allow wld02 servers to external DNS on port 53
       source: 
@@ -76,6 +83,7 @@ wld02:
         - ext-wld02-dns
       services:
         - DNS-TCP
+      action: ALLOW
       scope_enabled: true
     - name: Example of context profiles
       source: 
@@ -87,4 +95,5 @@ wld02:
         - SSL
       custom_context_profiles:
         - cp-wld02-custom-context-profile-name1
+      action: ALLOW
       scope_enabled: true  
