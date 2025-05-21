@@ -15,7 +15,7 @@ wld01:
           - env-wld01-prod
         destination: 
           - env-wld01-test
-        action: ALLOW
+        action: JUMP_TO_APPLICATION
         scope_enabled: true  
     blocked_communications:
       - name: Block test environment from prod environment
@@ -23,7 +23,7 @@ wld01:
           - env-wld01-test
         destination: 
           - env-wld01-prod
-        action: REJECT
+        action: DROP
         scope_enabled: true  
   application_policy:
     - name: Allow jumphost to ten-wld01 on SSH, ICMPv4 and HTTPS
