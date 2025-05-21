@@ -6,4 +6,10 @@ variable "tenant_id" {
 variable "inventory" {
   description = "Parsed tenant inventory from YAML file"
   type        = any
+}
+
+variable "project_id" {
+  description = "Project ID to use for NSX project context"
+  type        = string
+  default     = null
 } 

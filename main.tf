@@ -37,6 +37,7 @@ locals {
       authorized_flows_file = local.tenant_file_paths[tenant_id].authorized_flows_file
       inventory = yamldecode(file(local.tenant_file_paths[tenant_id].inventory_file))
       authorized_flows = yamldecode(file(local.tenant_file_paths[tenant_id].authorized_flows_file))
+      project_name = try(yamldecode(file(local.tenant_file_paths[tenant_id].inventory_file))[tenant_id].project_name, null)
     }
   }
 }
@@ -49,6 +50,7 @@ module "tags" {
   
   tenant_id = each.key
   inventory = each.value.inventory
+  project_id = each.value.project_name
 
   providers = {
     nsxt = nsxt
@@ -64,6 +66,7 @@ module "groups" {
   tenant_id  = each.key
   tenant_tag = module.tags[each.key].tenant_tag
   inventory  = each.value.inventory
+  project_id = each.value.project_name
   
   depends_on = [module.tags]
   
@@ -81,6 +84,7 @@ module "services" {
   tenant_id       = each.key
   authorized_flows = each.value.authorized_flows
   inventory       = each.value.inventory
+  project_id      = each.value.project_name
   
   depends_on = [module.groups]
   
@@ -98,6 +102,7 @@ module "context_profiles" {
   tenant_id       = each.key
   authorized_flows = each.value.authorized_flows
   inventory       = each.value.inventory
+  project_id      = each.value.project_name
   
   depends_on = [module.groups]
   
@@ -115,6 +120,7 @@ module "policies" {
   tenant_id       = each.key
   authorized_flows = each.value.authorized_flows
   inventory       = each.value.inventory
+  project_id      = each.value.project_name
   
   groups = {
     tenant_group_id         = module.groups[each.key].tenant_group_id

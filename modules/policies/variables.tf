@@ -4,17 +4,17 @@ variable "tenant_id" {
 }
 
 variable "authorized_flows" {
-  description = "Parsed authorized flows from YAML file"
+  description = "Parsed tenant authorized flows from YAML file"
   type        = any
 }
 
 variable "inventory" {
-  description = "Inventory configuration"
+  description = "Parsed tenant inventory from YAML file"
   type        = any
 }
 
 variable "groups" {
-  description = "Map of group IDs for reference in policies"
+  description = "Map of group IDs by type"
   type = object({
     tenant_group_id         = string
     environment_groups      = map(string)
@@ -26,11 +26,17 @@ variable "groups" {
 }
 
 variable "services" {
-  description = "Map of service definitions for reference in policies"
-  type        = map(any)
+  description = "Map of service paths by name"
+  type        = map(string)
 }
 
 variable "context_profiles" {
-  description = "Map of context profile IDs for reference in policies"
-  type        = map(any)
+  description = "Map of context profile paths by name"
+  type        = map(string)
+}
+
+variable "project_id" {
+  description = "Project ID to use for NSX project context"
+  type        = string
+  default     = null
 } 

@@ -17,12 +17,6 @@ output "tenant_group_details" {
         value       = local.tenant_tag
       }
     }
-    tags = [
-      {
-        scope = "tenant"
-        tag   = local.tenant_tag
-      }
-    ]
   }
 }
 
@@ -48,12 +42,6 @@ output "environment_groups_details" {
           value       = env_key
         }
       }
-      tags = [
-        {
-          scope = "environment"
-          tag   = env_key
-        }
-      ]
     }
   }
 }
@@ -80,12 +68,6 @@ output "application_groups_details" {
           value       = app_key
         }
       }
-      tags = [
-        {
-          scope = "application"
-          tag   = app_key
-        }
-      ]
     }
   }
 }
@@ -112,12 +94,6 @@ output "sub_application_groups_details" {
           value       = sub_app_key
         }
       }
-      tags = [
-        {
-          scope = "sub-application"
-          tag   = sub_app_key
-        }
-      ]
     }
   }
 }
@@ -137,12 +113,6 @@ output "external_service_groups_details" {
       description  = ext.description
       path         = ext.path
       ip_addresses = local.external_services[ext_key]
-      tags = [
-        {
-          scope = "external"
-          tag   = ext_key
-        }
-      ]
     }
   }
 }
@@ -161,14 +131,8 @@ output "emergency_groups_details" {
       display_name = emergency.display_name
       description  = emergency.description
       path         = emergency.path
-      vm_members   = try(local.emergency_resources[emergency_key], [])
-      criteria_type = length(compact(coalesce(local.emergency_resources[emergency_key], []))) > 0 ? "tag_based" : "empty"
-      tags = [
-        {
-          scope = "emergency"
-          tag   = emergency_key
-        }
-      ]
+      vm_members   = try(local.tenant_data.emergency[emergency_key], [])
+      criteria_type = length(compact(coalesce(try(local.tenant_data.emergency[emergency_key], []), []))) > 0 ? "tag_based" : "empty"
     }
   }
 } 

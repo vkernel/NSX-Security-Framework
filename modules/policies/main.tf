@@ -13,7 +13,9 @@ locals {
   # Extract policy data
   environment_policy = try(local.tenant_data.environment_policy, {})
   application_policy = try(local.tenant_data.application_policy, [])
-  emergency_policy = try(local.tenant_data.emergency_policy, [])
+  
+  # Emergency policy should not be used in project context
+  emergency_policy = var.project_id == null ? try(local.tenant_data.emergency_policy, []) : []
 
   # Process allowed and blocked environment communications
   allowed_env_rules = [
@@ -164,6 +166,13 @@ resource "nsxt_policy_security_policy" "environment_policy" {
   stateful     = true
   sequence_number = 2  # Second priority after emergency
 
+  dynamic "context" {
+    for_each = var.project_id != null ? [1] : []
+    content {
+      project_id = var.project_id
+    }
+  }
+
   dynamic "rule" {
     for_each = local.environment_rules
     content {
@@ -204,7 +213,14 @@ resource "nsxt_policy_security_policy" "application_policy" {
   category     = "Application"
   locked       = false
   stateful     = true
-  sequence_number = 3  # Third priority after environment
+  sequence_number = 3  # Third priority after emergency and environment
+
+  dynamic "context" {
+    for_each = var.project_id != null ? [1] : []
+    content {
+      project_id = var.project_id
+    }
+  }
 
   dynamic "rule" {
     for_each = local.application_rules
@@ -239,8 +255,11 @@ resource "nsxt_policy_security_policy" "application_policy" {
         )
       ])
       
-      # Handle destination groups with appropriate lookup based on format
-      destination_groups = flatten([
+      # Handle any as destination or specific destination groups
+      destination_groups = contains(
+        try(tolist(rule.value.destinations), [rule.value.destinations]),
+        "any"
+      ) ? [] : flatten([
         for dst in (
           # Try to treat as list first, if not possible use as a single string
           try(tolist(rule.value.destinations), [rule.value.destinations])
@@ -253,7 +272,7 @@ resource "nsxt_policy_security_policy" "application_policy" {
           ) : 
           startswith(dst, "env-") ? var.groups.environment_groups[dst] : 
           startswith(dst, "ext-") ? var.groups.external_service_groups[dst] :
-          startswith(dst, "ten-") ? var.groups.tenant_group_id :
+          startswith(dst, "ten-") ? var.groups.tenant_group_id : 
           contains(keys(var.groups.emergency_groups), dst) ? var.groups.emergency_groups[dst] : ""
         ]
         if (
@@ -265,38 +284,27 @@ resource "nsxt_policy_security_policy" "application_policy" {
         )
       ])
       
-      # Handle services - can be predefined or custom
-      # If we have multiple context profiles, we need to set services to ANY (empty list)
-      services = rule.value.has_multiple_profiles ? [] : flatten([
-        # Add predefined services
-        [
-          for service_key in rule.value.service_keys : 
-          lookup(var.services, service_key, null) != null ? 
-            [lookup(var.services, service_key).path] : []
-        ],
-        # Add custom services
-        [
-          for service_key in rule.value.custom_services : 
-          lookup(var.services, service_key, null) != null ? 
-            [lookup(var.services, service_key).path] : []
-        ]
+      # Add services 
+      services = flatten([
+        for svc in rule.value.service_keys : 
+        contains(keys(var.services), svc) ? [var.services[svc]] : []
       ])
       
-      # Handle context profiles - combine predefined and custom profiles in one list
-      profiles = concat(
-        # Get predefined profile paths 
-        flatten([
-          for profile_name in rule.value.predefined_profiles : 
-          lookup(var.context_profiles, profile_name, null) != null ? 
-            [lookup(var.context_profiles, profile_name)] : []
-        ]),
-        # Add custom profiles using the new flat list format
-        flatten([
-          for profile_name in rule.value.custom_profiles : 
-          lookup(var.context_profiles, profile_name, null) != null ? 
-            [lookup(var.context_profiles, profile_name)] : []
-        ])
-      )
+      # Add application profiles if any are defined
+      profiles = flatten([
+        # Add predefined profiles
+        [
+          for profile in rule.value.predefined_profiles : 
+          contains(keys(var.context_profiles), profile) ? var.context_profiles[profile] : ""
+          if profile != ""
+        ],
+        # Add custom profiles
+        [
+          for profile in rule.value.custom_profiles : 
+          contains(keys(var.context_profiles), profile) ? var.context_profiles[profile] : ""
+          if profile != ""
+        ]
+      ])
       
       action           = rule.value.action
       logged           = true

@@ -53,6 +53,13 @@ resource "nsxt_policy_context_profile" "custom_profile" {
   display_name = each.key
   description  = "Custom context profile for ${each.key}"
   
+  dynamic "context" {
+    for_each = var.project_id != null ? [1] : []
+    content {
+      project_id = var.project_id
+    }
+  }
+  
   # Add App IDs if specified - only one app_id block is allowed with multiple values
   dynamic "app_id" {
     for_each = length(each.value.app_ids) > 0 ? [1] : []

@@ -14,8 +14,15 @@ data "nsxt_policy_service" "predefined_services" {
 
 locals {
   tenant_key = var.tenant_id
-  tenant_data = var.authorized_flows[local.tenant_key]
-  tenant_inventory = var.inventory[local.tenant_key]
+  tenant_data = var.inventory[local.tenant_key]
+  
+  # Get custom services from both authorized flows and inventory
+  # Depending on the version, they could be in either place
+  custom_services_in_authorized_flows = try(var.authorized_flows[local.tenant_key].custom_services, {})
+  custom_services_in_inventory = try(local.tenant_data.custom_services, {})
+  
+  # Combine both maps, with inventory taking precedence if duplicates exist
+  custom_services = merge(local.custom_services_in_authorized_flows, local.custom_services_in_inventory)
   
   # Extract all predefined service names from application policies
   predefined_service_names = distinct(flatten([
@@ -31,7 +38,7 @@ locals {
   
   # Get custom service definitions from inventory file
   custom_service_definitions = [
-    for service_name, service_attrs in try(local.tenant_inventory.custom_services, {}) : {
+    for service_name, service_attrs in try(local.tenant_data.custom_services, {}) : {
       name = service_name
       protocol = try(service_attrs.protocol, "tcp")
       ports = try(service_attrs.ports, [])
@@ -40,18 +47,22 @@ locals {
   ]
 }
 
-# Create NSX services for each custom service definition
-resource "nsxt_policy_service" "custom_service" {
-  for_each = {
-    for service in local.custom_service_definitions : 
-      service.name => service
-  }
+# Create custom services
+resource "nsxt_policy_service" "custom_services" {
+  for_each = local.custom_services
   
   display_name = each.key
   description  = "Custom service for ${each.key}"
   
+  dynamic "context" {
+    for_each = var.project_id != null ? [1] : []
+    content {
+      project_id = var.project_id
+    }
+  }
+  
   dynamic "l4_port_set_entry" {
-    for_each = each.value.protocol == "tcp" || each.value.protocol == "udp" ? [each.value] : []
+    for_each = each.value.protocol == "tcp" || each.value.protocol == "udp" ? [1] : []
     content {
       display_name      = "port-${each.key}"
       protocol          = upper(each.value.protocol)
@@ -60,10 +71,12 @@ resource "nsxt_policy_service" "custom_service" {
   }
   
   dynamic "icmp_entry" {
-    for_each = each.value.protocol == "icmp" ? [each.value] : []
+    for_each = each.value.protocol == "icmp" ? [1] : []
     content {
       display_name = "icmp-${each.key}"
       protocol     = "ICMPv4"
+      icmp_type    = try(each.value.icmp_type, null)
+      icmp_code    = try(each.value.icmp_code, null)
     }
   }
 } 

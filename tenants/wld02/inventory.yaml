@@ -1,6 +1,7 @@
 ---
 # Format: Tenant > Internal/External > Environment > Application > Sub Application > Resources
 wld02:  # Tenant Key
+  project_name: "Test-Project"  # Project name for NSX
   internal:
     env-wld02-dev:  # Environment Key
       app-wld02-dev-3holapp:  # Application Key

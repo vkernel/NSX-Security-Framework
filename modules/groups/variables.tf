@@ -4,11 +4,17 @@ variable "tenant_id" {
 }
 
 variable "tenant_tag" {
-  description = "The tenant tag for this deployment"
+  description = "Tag for the tenant (e.g., ten-wld09)"
   type        = string
 }
 
 variable "inventory" {
   description = "Parsed tenant inventory from YAML file"
   type        = any
+}
+
+variable "project_id" {
+  description = "Project ID to use for NSX project context"
+  type        = string
+  default     = null
 } 
