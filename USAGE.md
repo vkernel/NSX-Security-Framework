@@ -7,6 +7,7 @@ This guide provides step-by-step instructions for deploying the NSX Security Fra
 - Terraform v1.0.0 or higher installed
 - Access to an NSX Manager with valid credentials
 - Virtual machines already deployed in NSX that match the names in your inventory YAML files
+- NSX Projects created in NSX Manager if you plan to use project-based tenant isolation
 
 ## Deployment Steps
 
@@ -84,6 +85,38 @@ After Terraform completes, verify the deployment:
    - Services for allowed protocols and ports (both predefined and custom)
    - Context profiles for application-level inspection (both predefined and custom)
    - Security policies with rules for environment and application traffic
+
+## Using NSX Projects with Tenants
+
+The NSX Security Framework supports NSX Projects for tenant isolation. This allows you to associate a tenant with an NSX Project, and all resources created for that tenant will be contained within the project context.
+
+### Project Configuration Steps
+
+1. **Create the Project in NSX Manager**:
+   - Create the project through the NSX Manager UI or API before using it with the framework
+   - Note the exact project name (case-sensitive)
+
+2. **Configure the Tenant to Use the Project**:
+   - Add the `project_name` field to the tenant's inventory.yaml file:
+     ```yaml
+     tenant_id:
+       project_name: "Exact-Project-Name"  # Must match exactly (case-sensitive)
+       internal:
+         # Rest of tenant configuration...
+     ```
+
+3. **Considerations When Using Projects**:
+   - Emergency policies are not supported in project context and will be skipped
+   - Make sure your project has the necessary permissions configured
+   - All tenant resources (groups, services, context profiles, policies) will be created in the project context
+   - Resources in a project are isolated from resources in other projects or the default domain
+
+### Troubleshooting Project Issues
+
+If you encounter errors related to projects, check the following:
+- Verify the project name in inventory.yaml matches exactly (case-sensitive) with the project in NSX Manager
+- Ensure the project exists in NSX Manager before running Terraform
+- Check that your NSX user account has sufficient permissions for the project
 
 ## Deploying for Multiple Tenants
 

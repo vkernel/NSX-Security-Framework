@@ -5,6 +5,7 @@ This Terraform project implements a robust security framework for VMware NSX env
 ## Features
 
 - Multi-tenancy with separate configuration per tenant
+- NSX Project support for tenant isolation
 - Tag-based microsegmentation aligned with NSX best practices
 - Emergency access policies for critical situations
 - Environment isolation with controlled cross-environment communication
@@ -20,6 +21,48 @@ The security framework follows the concept of hierarchical security with policie
 2. **Environment Policies**: Control communication between environments (e.g., Production, Test)
 3. **Application Policies**: Define allowed communications between application tiers and components
 
+## NSX Project Support
+
+The framework now supports NSX Projects for tenant isolation. When a tenant is associated with an NSX Project, all resources for that tenant (groups, services, context profiles, and policies) are created within the project context, providing proper isolation.
+
+To use a tenant with an NSX Project:
+
+1. Add a `project_name` field to the tenant's inventory.yaml file
+2. Ensure the project already exists in NSX Manager
+3. Note that emergency policies are not supported in project context and will be skipped
+
+Example configuration:
+
+```yaml
+tenant_id:
+  project_name: "Project-Name"  # Existing NSX Project name
+  internal:
+    env-{tenant}-{environment}:
+      app-{tenant}-{environment}-{app}:
+        app-{tenant}-{environment}-{app}-{component}:
+          - vm-name-1
+          - vm-name-2
+  external:
+    ext-{tenant}-{service}:
+      - ip-address-1
+  emergency:
+    {tenant}-emergency:
+      - vm-name-1
+  custom_context_profiles:
+    cp-{tenant}-custom-profile-name:
+      app_id: 
+        - "ACTIVDIR"   
+        - "AMQP"   
+      domain:
+        - "*.microsoft.com"      
+        - "*.office365.com"
+  custom_services:  
+    svc-{tenant}-custom-service-name:
+      ports:
+        - 8443
+      protocol: tcp
+```
+
 ## Configuration Files
 
 Each tenant requires two YAML configuration files:
@@ -30,6 +73,7 @@ Defines all resources (VMs, external services) organized by tenant, environment,
 
 ```yaml
 tenant_id:
+  project_name: "Project-Name"  # Optional - NSX Project for tenant isolation
   internal:
     env-{tenant}-{environment}:
       app-{tenant}-{environment}-{app}:
