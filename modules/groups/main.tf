@@ -78,7 +78,7 @@ locals {
 
 # Create group for the tenant
 resource "nsxt_policy_group" "tenant_group" {
-  display_name = "${local.tenant_key}-group"
+  display_name = "ten-${local.tenant_key}"
   description = "Group for all resources in tenant ${local.tenant_key}"
   domain = "default"
   
@@ -103,7 +103,7 @@ resource "nsxt_policy_group" "tenant_group" {
 resource "nsxt_policy_group" "environment_groups" {
   for_each = local.environment_keys
 
-  display_name = "${each.key}-group"
+  display_name = "${each.key}"
   description = "Group for environment ${each.key} in tenant ${local.tenant_key}"
   domain = "default"
   
@@ -142,7 +142,7 @@ resource "nsxt_policy_group" "environment_groups" {
 resource "nsxt_policy_group" "application_groups" {
   for_each = local.application_keys
 
-  display_name = "${each.key}-group"
+  display_name = "${each.key}"
   description = "Group for application ${each.key} in tenant ${local.tenant_key}"
   domain = "default"
   
@@ -194,7 +194,7 @@ resource "nsxt_policy_group" "application_groups" {
 resource "nsxt_policy_group" "sub_application_groups" {
   for_each = local.sub_application_keys
 
-  display_name = "${each.key}-group"
+  display_name = "${each.key}"
   description = "Group for sub-application ${each.key} in tenant ${local.tenant_key}"
   domain = "default"
   
@@ -259,7 +259,7 @@ resource "nsxt_policy_group" "sub_application_groups" {
 resource "nsxt_policy_group" "external_service_groups" {
   for_each = local.external_service_keys
 
-  display_name = "${each.key}-group"
+  display_name = "${each.key}"
   description = "Group for external service ${each.key} in tenant ${local.tenant_key}"
   domain = "default"
   
@@ -285,7 +285,7 @@ resource "nsxt_policy_group" "external_service_groups" {
 resource "nsxt_policy_group" "emergency_groups" {
   for_each = local.emergency_keys
 
-  display_name = "${each.key}-group"
+  display_name = "${each.key}"
   description = "Emergency group ${each.key} in tenant ${local.tenant_key}"
   domain = "default"
   
