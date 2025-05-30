@@ -8,9 +8,12 @@ output "environment_policy_id" {
   value       = length(nsxt_policy_security_policy.environment_policy) > 0 ? nsxt_policy_security_policy.environment_policy[0].id : null
 }
 
-output "application_policy_id" {
-  description = "ID of the application security policy, if created"
-  value       = length(nsxt_policy_security_policy.application_policy) > 0 ? nsxt_policy_security_policy.application_policy[0].id : null
+output "application_policy_ids" {
+  description = "Map of application security policy IDs by application key"
+  value = {
+    for key, policy in nsxt_policy_security_policy.application_policy :
+    key => policy.id
+  }
 }
 
 output "policy_count" {
@@ -27,6 +30,9 @@ output "rule_count" {
   value = {
     emergency   = length(local.emergency_rules)
     environment = length(local.environment_rules)
-    application = length(local.application_rules)
+    application = {
+      for key, rules in local.application_policies :
+      key => length(rules)
+    }
   }
 } 

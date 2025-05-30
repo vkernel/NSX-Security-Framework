@@ -194,7 +194,12 @@ authorized-flows.yaml
 │   │   └── blocked_communications:
 │   │       └── [list of blocked env rules]
 │   └── application_policy:
-│       └── [list of application rules]
+│       ├── app-{tenant}-app01:
+│       │   └── [list of rules for application firewall 1]
+│       ├── app-{tenant}-app02:
+│       │   └── [list of rules for application firewall 2]
+│       └── app-{tenant}-appN:
+│           └── [list of rules for application firewall N]
 ```
 
 ### Emergency Policy
@@ -228,82 +233,62 @@ environment_policy:
 
 ### Application Policy
 
-The application policy defines allowed traffic between specific application components. You can specify traffic flows using several methods:
+The application policy defines allowed traffic between specific application components. Starting with the updated framework, application policies now support **multiple named application firewalls** within a single tenant, where each application firewall creates its own separate NSX security policy.
 
-#### Application Policy Methods Diagram
+#### Application Policy Structure
 
-```
-┌─────────────────────────────────────────────────────────────────────────────────┐
-│                             Application Policy Methods                          │
-├────────────────────┬────────────────────┬───────────────────┬───────────────────┤
-│     Method 1       │     Method 2       │     Method 3      │     Method 4      │
-│ Predefined Services│  Custom Services   │Context Profiles   │  Combined Approach │
-├────────────────────┼────────────────────┼───────────────────┼───────────────────┤
-│ - services:        │ - custom_services: │ - context_profiles:│ - services:       │
-│   - HTTPS          │   - svc-name       │   - SSL           │   - HTTPS         │
-│   - SSH            │                    │ - custom_context_ │ - custom_services: │
-│                    │                    │   profiles:       │   - svc-name      │
-│                    │                    │   - cp-name       │ - context_profiles:│
-│                    │                    │                   │   - SSL           │
-└────────────────────┴────────────────────┴───────────────────┴───────────────────┘
-```
-
-#### Method 1: Using predefined NSX services
+The application policy is now structured as a map where each key represents an application firewall name, and each value contains a list of rules for that specific firewall:
 
 ```yaml
-- name: Allow HTTPS and SSH access to web servers
-  source: ext-wld01-jumphosts
-  destination: 
-    - app-wld01-prod-web
-  services:
-    - HTTPS
-    - SSH
-    - ICMPv4
+application_policy:
+  app-wld01-app01:  # First application firewall
+    - name: Allow jumphost to ten-wld01 on SSH, ICMPv4 and HTTPS
+      source: ext-wld01-jumphosts
+      destination: 
+        - ten-wld01
+      services:
+        - SSH
+        - ICMPv4
+        - HTTPS
+      action: ALLOW
+      scope_enabled: false
+    - name: Allow web servers to application servers
+      source: 
+        - app-wld01-prod-web
+      destination: 
+        - app-wld01-prod-application
+      custom_services:  
+        - svc-wld01-custom-service-name1
+      action: ALLOW
+      scope_enabled: true
+  
+  app-wld01-app02:  # Second application firewall
+    - name: Allow database access for app02
+      source: 
+        - app-wld01-prod-application
+      destination: 
+        - app-wld01-prod-database
+      services:
+        - MySQL
+      action: ALLOW
+      scope_enabled: true
 ```
 
-#### Method 2: Using custom services defined in inventory.yaml
+#### Benefits of Multiple Application Firewalls
 
-```yaml
-- name: Allow custom service access
-  source: ext-wld01-jumphosts
-  destination: 
-    - app-wld01-prod-web
-  custom_services:
-    - svc-wld01-custom-service-name
-```
+1. **Separation of Concerns**: Different application components can have their own dedicated firewall policies
+2. **Independent Management**: Each application firewall can be modified independently without affecting others
+3. **Clearer Organization**: Rules are logically grouped by application or function
+4. **Granular Control**: Each application firewall creates its own NSX security policy with its own sequence number
 
-#### Method 3: Using context profiles (predefined and custom)
+#### NSX Security Policy Creation
 
-```yaml
-- name: Allow web traffic with context profiles
-  source: ext-wld01-jumphosts
-  destination:
-    - app-wld01-prod-web
-  context_profiles:
-    - SSL
-    - DNS
-  custom_context_profiles:
-    - cp-wld01-custom-context-profile
-```
+When using multiple application firewalls, the framework creates:
+- One NSX security policy per application firewall key
+- Policy names follow the pattern: `app-{tenant}-{application-firewall-key}-policy`
+- Example: `app-wld01-app-wld01-app01-policy` and `app-wld01-app-wld01-app02-policy`
 
-#### Method 4: Combined approach
-
-You can combine multiple approaches in a single rule:
-
-```yaml
-- name: Combined rule with services and context profiles
-  source: ext-wld01-jumphosts
-  destination: 
-    - app-wld01-prod-web
-  services:
-    - HTTPS
-  custom_services:
-    - svc-wld01-custom-service-name
-  context_profiles:
-    - SSL
-  custom_context_profiles:
-    - cp-wld01-custom-context-profile
-```
+You can specify traffic flows using several methods:
 
 ### Controlling Scope for Security Rules
 

@@ -80,11 +80,11 @@ output "context_profiles" {
 
 output "policy_ids" {
   description = "IDs of security policies created for each tenant"
-  value       = {
+  value = {
     for tenant_id, policy in module.policies : tenant_id => {
-      emergency_policy   = policy.emergency_policy_id
-      environment_policy = policy.environment_policy_id
-      application_policy = policy.application_policy_id
+      emergency_policy    = policy.emergency_policy_id
+      environment_policy  = policy.environment_policy_id
+      application_policies = policy.application_policy_ids
     }
   }
 }

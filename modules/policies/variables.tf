@@ -4,7 +4,7 @@ variable "tenant_id" {
 }
 
 variable "authorized_flows" {
-  description = "Parsed tenant authorized flows from YAML file"
+  description = "Parsed tenant authorized flows from YAML file. The application_policy should be a map where keys are application firewall names (e.g., app-wld01-app01) and values are lists of rule objects."
   type        = any
 }
 

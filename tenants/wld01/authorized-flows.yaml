@@ -26,61 +26,155 @@ wld01:
         action: DROP
         scope_enabled: true  
   application_policy:
-    - name: Allow jumphost to ten-wld01 on SSH, ICMPv4 and HTTPS
-      source: ext-wld01-jumphosts
-      destination: 
-        - ten-wld01
-      services:
-        - SSH
-        - ICMPv4
-        - HTTPS
-      action: ALLOW
-      scope_enabled: false  
-    - name: Allow web servers to application servers on port 8443
-      source: 
-        - app-wld01-prod-3holapp-web
-        - app-wld01-prod-web
-        - app-wld01-test-web
-      destination: 
-        - app-wld01-prod-3holapp-application
-        - app-wld01-prod-application
-        - app-wld01-test-application
-      custom_services:  
-        - svc-wld01-custom-service-name1
-      action: ALLOW
-      scope_enabled: true  
-    - name: Allow application servers to database servers on port 3306
-      source: 
-        - app-wld01-prod-3holapp-application
-        - app-wld01-prod-application
-        - app-wld01-test-application
-      destination: 
-        - app-wld01-prod-3holapp-database
-        - app-wld01-prod-database
-        - app-wld01-test-database
-      services:
-        - MySQL
-      action: ALLOW
-      scope_enabled: true  
-    - name: Allow wld01 servers to external DNS on port 53
-      source: 
-        - ten-wld01
-      destination: 
-        - ext-wld01-dns
-      services:
-        - DNS-TCP
-      action: ALLOW
-      scope_enabled: true  
-    - name: Example of context profiles
-      source: 
-        - ten-wld01
-      destination: 
-        - ext-wld01-dns
-      context_profiles:
-        - DNS
-        - SSL
-      custom_context_profiles:
-        - cp-wld01-custom-context-profile-name2
-        - cp-wld01-custom-context-profile-name3
-      action: ALLOW
-      scope_enabled: true  
+    app-wld01-prod-3holapp-policy:
+      - name: Allow web servers to application servers on port 8443
+        source: 
+          - app-wld01-prod-3holapp-web
+        destination: 
+          - app-wld01-prod-3holapp-application
+        custom_services:  
+          - svc-wld01-custom-service-name1
+        action: ALLOW
+        scope_enabled: true  
+      - name: Allow application servers to database servers on port 3306
+        source: 
+          - app-wld01-prod-3holapp-application
+        destination: 
+          - app-wld01-prod-3holapp-database
+        services:
+          - MySQL
+        action: ALLOW
+        scope_enabled: true  
+      - name: Allow wld01 servers to external DNS on port 53
+        source: 
+          - app-wld01-prod-3holapp
+        destination: 
+          - ext-wld01-dns
+        services:
+          - DNS-TCP
+        action: ALLOW
+        scope_enabled: true  
+      - name: Example of context profiles
+        source: 
+          - app-wld01-prod-3holapp
+        destination: 
+          - ext-wld01-dns
+        context_profiles:
+          - DNS
+          - SSL
+        custom_context_profiles:
+          - cp-wld01-custom-context-profile-name2
+          - cp-wld01-custom-context-profile-name3
+        action: ALLOW
+        scope_enabled: true 
+      - name: Last Rule
+        source: 
+          - env-wld01-prod
+        destination: 
+          - env-wld01-prod
+        action: ALLOW
+        scope_enabled: true   
+    app-wld01-prod-policy:
+      - name: Allow web servers to application servers on port 8443
+        source: 
+          - app-wld01-prod-web
+        destination: 
+          - app-wld01-prod-application
+        custom_services:  
+          - svc-wld01-custom-service-name1
+        action: ALLOW
+        scope_enabled: true  
+      - name: Allow application servers to database servers on port 3306
+        source: 
+          - app-wld01-prod-application
+        destination: 
+          - app-wld01-prod-database
+        services:
+          - MySQL
+        action: ALLOW
+        scope_enabled: true  
+      - name: Allow wld01 servers to external DNS on port 53
+        source: 
+          - app-wld01-prod-database
+          - app-wld01-prod-application
+          - app-wld01-prod-web
+        destination: 
+          - ext-wld01-dns
+        services:
+          - DNS-TCP
+        action: ALLOW
+        scope_enabled: true  
+      - name: Example of context profiles
+        source: 
+          - app-wld01-prod-database
+          - app-wld01-prod-application
+          - app-wld01-prod-web
+        destination: 
+          - ext-wld01-dns
+        context_profiles:
+          - DNS
+          - SSL
+        custom_context_profiles:
+          - cp-wld01-custom-context-profile-name2
+          - cp-wld01-custom-context-profile-name3
+        action: ALLOW
+        scope_enabled: true  
+      - name: Last Rule
+        source: 
+          - env-wld01-prod
+        destination: 
+          - env-wld01-prod
+        action: ALLOW
+        scope_enabled: true  
+    app-wld01-test-policy:
+      - name: Allow web servers to application servers on port 8443
+        source: 
+          - app-wld01-test-web
+        destination: 
+          - app-wld01-test-application
+        custom_services:  
+          - svc-wld01-custom-service-name1
+        action: ALLOW
+        scope_enabled: true  
+      - name: Allow application servers to database servers on port 3306
+        source: 
+          - app-wld01-test-application
+        destination: 
+          - app-wld01-test-database
+        services:
+          - MySQL
+        action: ALLOW
+        scope_enabled: true  
+      - name: Allow wld01 servers to external DNS on port 53
+        source: 
+          - app-wld01-test-database
+          - app-wld01-test-application
+          - app-wld01-test-web
+        destination: 
+          - ext-wld01-dns
+        services:
+          - DNS-TCP
+        action: ALLOW
+        scope_enabled: true  
+      - name: Example of context profiles
+        source: 
+          - app-wld01-test-database
+          - app-wld01-test-application
+          - app-wld01-test-web
+        destination: 
+          - ext-wld01-dns
+        context_profiles:
+          - DNS
+          - SSL
+        custom_context_profiles:
+          - cp-wld01-custom-context-profile-name2
+          - cp-wld01-custom-context-profile-name3
+        action: ALLOW
+        scope_enabled: true  
+      - name: Last Rule
+        source: 
+          - env-wld01-test
+        destination: 
+          - env-wld01-prod
+        action: ALLOW
+        scope_enabled: true  

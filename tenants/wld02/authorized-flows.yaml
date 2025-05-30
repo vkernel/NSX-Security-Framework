@@ -26,60 +26,68 @@ wld02:
         action: DROP
         scope_enabled: true 
   application_policy:
-    - name: Allow jumphost to ten-wld01 on SSH, ICMPv4 and HTTPS
-      source: ext-wld02-jumphosts
-      destination: 
-        - ten-wld02
-      services:
-        - SSH
-        - ICMPv4
-        - HTTPS
-      action: ALLOW
-      scope_enabled: false  
-    - name: Allow web servers to application servers on port 8443
-      source: 
-        - app-wld02-dev-3holapp-web
-        - app-wld02-dev-web
-        - app-wld02-acc-web
-      destination: 
-        - app-wld02-dev-3holapp-application
-        - app-wld02-dev-application
-        - app-wld02-acc-application
-      custom_services:
-        - svc-wld02-custom-service-name1
-      action: ALLOW
-      scope_enabled: true  
-    - name: Allow application servers to database servers on port 3306
-      source: 
-        - app-wld02-dev-3holapp-application
-        - app-wld02-dev-application
-        - app-wld02-acc-application
-      destination: 
-        - app-wld02-dev-3holapp-database
-        - app-wld02-dev-database
-        - app-wld02-acc-database
-      services:
-        - MySQL
-      action: ALLOW
-      scope_enabled: true  
-    - name: Allow wld02 servers to external DNS on port 53
-      source: 
-        - ten-wld02
-      destination: 
-        - ext-wld02-dns
-      services:
-        - DNS-TCP
-      action: ALLOW
-      scope_enabled: true
-    - name: Example of context profiles
-      source: 
-        - ten-wld02
-      destination: 
-        - ext-wld02-dns
-      context_profiles:
-        - DNS
-        - SSL
-      custom_context_profiles:
-        - cp-wld02-custom-context-profile-name1
-      action: ALLOW
-      scope_enabled: true  
+    app-wld02-app01-policy:
+      - name: Allow jumphost to ten-wld01 on SSH, ICMPv4 and HTTPS
+        source: ext-wld02-jumphosts
+        destination: 
+          - ten-wld02
+        services:
+          - SSH
+          - ICMPv4
+          - HTTPS
+        action: ALLOW
+        scope_enabled: false  
+      - name: Allow web servers to application servers on port 8443
+        source: 
+          - app-wld02-dev-3holapp-web
+          - app-wld02-dev-web
+          - app-wld02-acc-web
+        destination: 
+          - app-wld02-dev-3holapp-application
+          - app-wld02-dev-application
+          - app-wld02-acc-application
+        custom_services:
+          - svc-wld02-custom-service-name1
+        action: ALLOW
+        scope_enabled: true  
+      - name: Allow application servers to database servers on port 3306
+        source: 
+          - app-wld02-dev-3holapp-application
+          - app-wld02-dev-application
+          - app-wld02-acc-application
+        destination: 
+          - app-wld02-dev-3holapp-database
+          - app-wld02-dev-database
+          - app-wld02-acc-database
+        services:
+          - MySQL
+        action: ALLOW
+        scope_enabled: true  
+      - name: Allow wld02 servers to external DNS on port 53
+        source: 
+          - ten-wld02
+        destination: 
+          - ext-wld02-dns
+        services:
+          - DNS-TCP
+        action: ALLOW
+        scope_enabled: true
+      - name: Example of context profiles
+        source: 
+          - ten-wld02
+        destination: 
+          - ext-wld02-dns
+        context_profiles:
+          - DNS
+          - SSL
+        custom_context_profiles:
+          - cp-wld02-custom-context-profile-name1
+        action: ALLOW
+        scope_enabled: true  
+      - name: Last Rule
+        source: 
+          - ANY
+        destination: 
+          - ANY
+        action: ALLOW
+        scope_enabled: true  

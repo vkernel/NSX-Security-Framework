@@ -9,7 +9,7 @@ output "tenant_group_details" {
     display_name = nsxt_policy_group.tenant_group.display_name
     description  = nsxt_policy_group.tenant_group.description
     path         = nsxt_policy_group.tenant_group.path
-    criteria     = {
+    criteria = {
       tag_criteria = {
         key         = "Tag"
         member_type = "VirtualMachine"
@@ -34,7 +34,7 @@ output "environment_groups_details" {
       display_name = env.display_name
       description  = env.description
       path         = env.path
-      criteria     = {
+      criteria = {
         tag_criteria = {
           key         = "Tag"
           member_type = "VirtualMachine"
@@ -60,7 +60,7 @@ output "application_groups_details" {
       display_name = app.display_name
       description  = app.description
       path         = app.path
-      criteria     = {
+      criteria = {
         tag_criteria = {
           key         = "Tag"
           member_type = "VirtualMachine"
@@ -86,7 +86,7 @@ output "sub_application_groups_details" {
       display_name = sub_app.display_name
       description  = sub_app.description
       path         = sub_app.path
-      criteria     = {
+      criteria = {
         tag_criteria = {
           key         = "Tag"
           member_type = "VirtualMachine"
@@ -128,10 +128,10 @@ output "emergency_groups_details" {
   description = "Detailed information about emergency groups configuration"
   value = {
     for emergency_key, emergency in nsxt_policy_group.emergency_groups : emergency_key => {
-      display_name = emergency.display_name
-      description  = emergency.description
-      path         = emergency.path
-      vm_members   = try(local.tenant_data.emergency[emergency_key], [])
+      display_name  = emergency.display_name
+      description   = emergency.description
+      path          = emergency.path
+      vm_members    = try(local.tenant_data.emergency[emergency_key], [])
       criteria_type = length(compact(coalesce(try(local.tenant_data.emergency[emergency_key], []), []))) > 0 ? "tag_based" : "empty"
     }
   }
