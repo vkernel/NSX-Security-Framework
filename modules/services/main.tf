@@ -15,6 +15,10 @@ data "nsxt_policy_service" "predefined_services" {
 locals {
   tenant_key  = var.tenant_id
   tenant_data = var.inventory[local.tenant_key]
+  
+  # Get application policies from authorized flows (not inventory)
+  authorized_flows_data = var.authorized_flows[local.tenant_key]
+  application_policies = try(local.authorized_flows_data.application_policy, {})
 
   # Get custom services from both authorized flows and inventory
   # Depending on the version, they could be in either place
@@ -24,16 +28,20 @@ locals {
   # Combine both maps, with inventory taking precedence if duplicates exist
   custom_services = merge(local.custom_services_in_authorized_flows, local.custom_services_in_inventory)
 
-  # Extract all predefined service names from application policies
+  # Extract all predefined service names from application policies in authorized flows
   predefined_service_names = distinct(flatten([
-    for rule in try(local.tenant_data.application_policy, []) :
-    try(rule.services, [])
+    for policy_key, rules in local.application_policies : [
+      for rule in rules :
+      try(rule.services, [])
+    ]
   ]))
 
-  # Extract custom service references from application policies
+  # Extract custom service references from application policies in authorized flows
   custom_service_references = distinct(flatten([
-    for rule in try(local.tenant_data.application_policy, []) :
-    try(rule.custom_services, [])
+    for policy_key, rules in local.application_policies : [
+      for rule in rules :
+      try(rule.custom_services, [])
+    ]
   ]))
 
   # Get custom service definitions from inventory file

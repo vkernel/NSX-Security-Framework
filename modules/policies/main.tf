@@ -292,14 +292,21 @@ resource "nsxt_policy_security_policy" "application_policy" {
           )
       ])
 
-      # Add services - only set if there are valid services, otherwise omit the field entirely
-      services = length(flatten([
-        for svc in rule.value.service_keys :
-        contains(keys(var.services), svc) ? [var.services[svc]] : []
-      ])) > 0 ? flatten([
-        for svc in rule.value.service_keys :
-        contains(keys(var.services), svc) ? [var.services[svc]] : []
-      ]) : []
+      # Add services - combine both predefined and custom services
+      services = flatten([
+        # Predefined services - look up paths in var.services
+        [
+          for svc in rule.value.service_keys :
+          var.services[svc] 
+          if contains(keys(var.services), svc)
+        ],
+        # Custom services - look up paths in var.services
+        [
+          for custom_svc in rule.value.custom_services :
+          var.services[custom_svc] 
+          if contains(keys(var.services), custom_svc)
+        ]
+      ])
 
       # Add application profiles if any are defined - only set if there are valid profiles, otherwise use empty list
       profiles = length(flatten([

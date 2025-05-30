@@ -26,6 +26,18 @@ wld01:
         action: DROP
         scope_enabled: true  
   application_policy:
+    app-wld01-access-policy:
+      - name: Allow remote access to tenant
+        source: 
+          - ext-wld01-jumphosts
+        destination: 
+          - ten-wld02
+        services:  
+          - SSH
+          - HTTPS
+          - ICMPv4
+        action: ALLOW
+        scope_enabled: true 
     app-wld01-prod-3holapp-policy:
       - name: Allow web servers to application servers on port 8443
         source: 
