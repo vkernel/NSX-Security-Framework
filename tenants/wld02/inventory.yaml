@@ -40,6 +40,12 @@ wld02:  # Tenant Key
     ext-wld02-jumphosts:  # External Services Key  
       - 10.10.89.11 
       - windows02
+  consumer:
+    cons-wld02-dev-3holapp:  # Application Key
+      - ext-wld02-jumphosts
+  provider:
+    prov-wld02-dev-3holapp:  # Application Key
+      - app-wld02-dev-3holapp
   emergency:
     emg-wld02:  # Emergency Key
       [] 

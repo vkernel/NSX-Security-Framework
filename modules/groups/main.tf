@@ -89,6 +89,22 @@ resource "nsxt_policy_group" "tenant_group" {
     }
   }
 
+  # Add tags to identify the group
+  tag {
+    scope = "type"
+    tag   = "tenant-group"
+  }
+
+  tag {
+    scope = "tenant"
+    tag   = local.tenant_tag
+  }
+
+  tag {
+    scope = "managed-by"
+    tag   = "terraform"
+  }
+
   criteria {
     condition {
       key         = "Tag"
@@ -112,6 +128,27 @@ resource "nsxt_policy_group" "environment_groups" {
     content {
       project_id = var.project_id
     }
+  }
+
+  # Add tags to identify the group
+  tag {
+    scope = "type"
+    tag   = "environment-group"
+  }
+
+  tag {
+    scope = "tenant"
+    tag   = local.tenant_tag
+  }
+
+  tag {
+    scope = "environment"
+    tag   = each.key
+  }
+
+  tag {
+    scope = "managed-by"
+    tag   = "terraform"
   }
 
   criteria {
@@ -151,6 +188,32 @@ resource "nsxt_policy_group" "application_groups" {
     content {
       project_id = var.project_id
     }
+  }
+
+  # Add tags to identify the group
+  tag {
+    scope = "type"
+    tag   = "application-group"
+  }
+
+  tag {
+    scope = "tenant"
+    tag   = local.tenant_tag
+  }
+
+  tag {
+    scope = "environment"
+    tag   = local.app_to_env[each.key]
+  }
+
+  tag {
+    scope = "application"
+    tag   = each.key
+  }
+
+  tag {
+    scope = "managed-by"
+    tag   = "terraform"
   }
 
   criteria {
@@ -203,6 +266,37 @@ resource "nsxt_policy_group" "sub_application_groups" {
     content {
       project_id = var.project_id
     }
+  }
+
+  # Add tags to identify the group
+  tag {
+    scope = "type"
+    tag   = "sub-application-group"
+  }
+
+  tag {
+    scope = "tenant"
+    tag   = local.tenant_tag
+  }
+
+  tag {
+    scope = "environment"
+    tag   = local.sub_app_to_app_env[each.key].env_key
+  }
+
+  tag {
+    scope = "application"
+    tag   = local.sub_app_to_app_env[each.key].app_key
+  }
+
+  tag {
+    scope = "sub-application"
+    tag   = each.key
+  }
+
+  tag {
+    scope = "managed-by"
+    tag   = "terraform"
   }
 
   criteria {
@@ -270,6 +364,27 @@ resource "nsxt_policy_group" "external_service_groups" {
     }
   }
 
+  # Add tags to identify the group
+  tag {
+    scope = "type"
+    tag   = "external-service-group"
+  }
+
+  tag {
+    scope = "tenant"
+    tag   = local.tenant_tag
+  }
+
+  tag {
+    scope = "external-service"
+    tag   = each.key
+  }
+
+  tag {
+    scope = "managed-by"
+    tag   = "terraform"
+  }
+
   # Create criteria for IP addresses/CIDRs (if any exist)
   dynamic "criteria" {
     for_each = length([
@@ -333,6 +448,27 @@ resource "nsxt_policy_group" "emergency_groups" {
     content {
       project_id = var.project_id
     }
+  }
+
+  # Add tags to identify the group
+  tag {
+    scope = "type"
+    tag   = "emergency-group"
+  }
+
+  tag {
+    scope = "tenant"
+    tag   = local.tenant_tag
+  }
+
+  tag {
+    scope = "emergency"
+    tag   = each.key
+  }
+
+  tag {
+    scope = "managed-by"
+    tag   = "terraform"
   }
 
   criteria {

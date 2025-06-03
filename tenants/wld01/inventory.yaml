@@ -37,6 +37,12 @@ wld01:  # Tenant Key
     ext-wld01-jumphosts:  # External Services Key  
       - 10.10.89.11 
       - windows01
+  consumer:
+    cons-wld01-prod-3holapp:  # Application Key
+      - ext-wld01-jumphosts
+  provider:
+    prov-wld01-prod-3holapp:  # Application Key
+      - app-wld01-prod-3holapp
   emergency:
     emg-wld01:  # Emergency Key
       []
