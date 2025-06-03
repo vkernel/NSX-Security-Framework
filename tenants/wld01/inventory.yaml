@@ -39,7 +39,7 @@ wld01:  # Tenant Key
       - windows01
   emergency:
     emg-wld01:  # Emergency Key
-      - 
+      []
   custom_context_profiles:
     cp-wld01-custom-context-profile-name2:
       app_id: 

@@ -37,7 +37,7 @@ wld01:
           - HTTPS
           - ICMPv4
         action: ALLOW
-        scope_enabled: false 
+        scope_enabled: true 
     app-wld01-prod-3holapp-policy:
       - name: Allow web servers to application servers on port 8443
         source: 
@@ -84,7 +84,7 @@ wld01:
           - env-wld01-prod
         destination: 
           - env-wld01-prod
-        action: ALLOW
+        action: DROP
         scope_enabled: true   
     app-wld01-prod-policy:
       - name: Allow web servers to application servers on port 8443
@@ -136,7 +136,7 @@ wld01:
           - env-wld01-prod
         destination: 
           - env-wld01-prod
-        action: ALLOW
+        action: DROP
         scope_enabled: true  
     app-wld01-test-policy:
       - name: Allow web servers to application servers on port 8443
@@ -188,5 +188,5 @@ wld01:
           - env-wld01-test
         destination: 
           - env-wld01-prod
-        action: ALLOW
+        action: DROP
         scope_enabled: true  
