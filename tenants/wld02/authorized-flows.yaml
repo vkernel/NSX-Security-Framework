@@ -45,7 +45,7 @@ wld02:
         destination: 
           - app-wld02-dev-3holapp-application
         custom_services:  
-          - svc-wld01-custom-service-name1
+          - svc-wld02-custom-service-name1
         action: ALLOW
         scope_enabled: true  
       - name: Allow application servers to database servers on port 3306
@@ -57,7 +57,7 @@ wld02:
           - MySQL
         action: ALLOW
         scope_enabled: true  
-      - name: Allow wld01 servers to external DNS on port 53
+      - name: Allow wld02 servers to external DNS on port 53
         source: 
           - app-wld02-dev-3holapp
         destination: 
@@ -75,8 +75,7 @@ wld02:
           - DNS
           - SSL
         custom_context_profiles:
-          - cp-wld02-custom-context-profile-name2
-          - cp-wld02-custom-context-profile-name3
+          - cp-wld02-custom-context-profile-name1
         action: ALLOW
         scope_enabled: true 
       - name: Last Rule
@@ -93,7 +92,7 @@ wld02:
         destination: 
           - app-wld02-dev-application
         custom_services:  
-          - svc-wld01-custom-service-name1
+          - svc-wld02-custom-service-name1
         action: ALLOW
         scope_enabled: true  
       - name: Allow application servers to database servers on port 3306
@@ -105,7 +104,7 @@ wld02:
           - MySQL
         action: ALLOW
         scope_enabled: true  
-      - name: Allow wld01 servers to external DNS on port 53
+      - name: Allow wld02 servers to external DNS on port 53
         source: 
           - app-wld02-dev-database
           - app-wld02-dev-application
@@ -127,8 +126,7 @@ wld02:
           - DNS
           - SSL
         custom_context_profiles:
-          - cp-wld02-custom-context-profile-name2
-          - cp-wld02-custom-context-profile-name3
+          - cp-wld02-custom-context-profile-name1
         action: ALLOW
         scope_enabled: true  
       - name: Last Rule
@@ -145,7 +143,7 @@ wld02:
         destination: 
           - app-wld02-acc-application
         custom_services:  
-          - svc-wld01-custom-service-name1
+          - svc-wld02-custom-service-name1
         action: ALLOW
         scope_enabled: true  
       - name: Allow application servers to database servers on port 3306
@@ -157,7 +155,7 @@ wld02:
           - MySQL
         action: ALLOW
         scope_enabled: true  
-      - name: Allow wld01 servers to external DNS on port 53
+      - name: Allow wld02 servers to external DNS on port 53
         source: 
           - app-wld02-acc-database
           - app-wld02-acc-application
@@ -179,8 +177,7 @@ wld02:
           - DNS
           - SSL
         custom_context_profiles:
-          - cp-wld02-custom-context-profile-name2
-          - cp-wld02-custom-context-profile-name3
+          - cp-wld02-custom-context-profile-name1
         action: ALLOW
         scope_enabled: true  
       - name: Last Rule

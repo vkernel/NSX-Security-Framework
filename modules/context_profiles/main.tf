@@ -17,16 +17,24 @@ locals {
   tenant_data      = var.authorized_flows[local.tenant_key]
   tenant_inventory = var.inventory[local.tenant_key]
 
+  # Get application policies from authorized flows (not inventory)
+  authorized_flows_data = var.authorized_flows[local.tenant_key]
+  application_policies = try(local.authorized_flows_data.application_policy, {})
+
   # Extract all predefined context profile names from application policies
   predefined_profile_names = distinct(flatten([
-    for rule in try(local.tenant_data.application_policy, []) :
-    try(rule.context_profiles, [])
+    for policy_key, rules in local.application_policies : [
+      for rule in rules :
+      try(rule.context_profiles, [])
+    ]
   ]))
 
   # Extract custom context profile references from application policies
   custom_profile_references = distinct(flatten([
-    for rule in try(local.tenant_data.application_policy, []) :
-    try(rule.custom_context_profiles, [])
+    for policy_key, rules in local.application_policies : [
+      for rule in rules :
+      try(rule.custom_context_profiles, [])
+    ]
   ]))
 
   # Get custom context profile definitions from inventory file
