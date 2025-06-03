@@ -33,19 +33,40 @@ wld02:  # Tenant Key
   external:
     ext-wld02-dns:  # External Services Key  
       - 192.168.12.10 
-      - 192.168.12.0/24 
     ext-wld02-ntp:  # External Services Key  
       - 192.168.12.1  
-      - 192.168.12.0/24 
     ext-wld02-jumphosts:  # External Services Key  
       - 10.10.89.11 
-      - windows02
   consumer:
     cons-wld02-dev-3holapp:  # Application Key
+      - ext-wld02-jumphosts
+    cons-wld02-dev-database:  # Application Key
+      - ext-wld02-jumphosts
+    cons-wld02-dev-application:  # Application Key
+      - ext-wld02-jumphosts
+    cons-wld02-dev-web:  # Application Key
+      - ext-wld02-jumphosts
+    cons-wld02-acc-database:  # Application Key
+      - ext-wld02-jumphosts
+    cons-wld02-acc-application:  # Application Key
+      - ext-wld02-jumphosts
+    cons-wld02-acc-web:  # Application Key
       - ext-wld02-jumphosts
   provider:
     prov-wld02-dev-3holapp:  # Application Key
       - app-wld02-dev-3holapp
+    prov-wld02-dev-database:  # Application Key
+      - app-wld02-dev-database
+    prov-wld02-dev-application:  # Application Key
+      - app-wld02-dev-application
+    prov-wld02-dev-web:  # Application Key
+      - app-wld02-dev-web
+    prov-wld02-acc-database:  # Application Key
+      - app-wld02-acc-database
+    prov-wld02-acc-application:  # Application Key
+      - app-wld02-acc-application
+    prov-wld02-acc-web:  # Application Key
+      - app-wld02-acc-web
   emergency:
     emg-wld02:  # Emergency Key
       [] 

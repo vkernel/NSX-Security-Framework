@@ -36,13 +36,20 @@ wld01:  # Tenant Key
       - 192.168.12.1 
     ext-wld01-jumphosts:  # External Services Key  
       - 10.10.89.11 
-      - windows01
   consumer:
-    cons-wld01-prod-3holapp:  # Application Key
+    cons-wld01-prod-3holapp-web:  # Application Key
+      - ext-wld01-jumphosts
+    cons-wld01-prod-web:  # Application Key
+      - ext-wld01-jumphosts
+    cons-wld01-test-web:  # Application Key
       - ext-wld01-jumphosts
   provider:
-    prov-wld01-prod-3holapp:  # Application Key
-      - app-wld01-prod-3holapp
+    prov-wld01-prod-3holapp-web:  # Application Key
+      - app-wld01-prod-3holapp-web
+    prov-wld01-prod-web:  # Application Key
+      - app-wld01-prod-web
+    prov-wld01-test-web:  # Application Key
+      - app-wld01-test-web
   emergency:
     emg-wld01:  # Emergency Key
       []

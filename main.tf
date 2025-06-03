@@ -129,6 +129,8 @@ module "policies" {
     sub_application_groups  = module.groups[each.key].sub_application_groups
     external_service_groups = module.groups[each.key].external_service_groups
     emergency_groups        = module.groups[each.key].emergency_groups
+    consumer_groups         = module.groups[each.key].consumer_groups
+    provider_groups         = module.groups[each.key].provider_groups
   }
 
   services         = module.services[each.key].services

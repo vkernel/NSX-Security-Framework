@@ -114,6 +114,8 @@ resource "nsxt_policy_security_policy" "emergency_policy" {
           startswith(src, "env-") ? var.groups.environment_groups[src] :
           startswith(src, "ext-") ? var.groups.external_service_groups[src] :
           startswith(src, "ten-") ? var.groups.tenant_group_id :
+          startswith(src, "cons-") ? var.groups.consumer_groups[src] :
+          startswith(src, "prov-") ? var.groups.provider_groups[src] :
           contains(keys(var.groups.emergency_groups), src) ? var.groups.emergency_groups[src] : ""
         ]
         if(
@@ -121,6 +123,8 @@ resource "nsxt_policy_security_policy" "emergency_policy" {
           (startswith(src, "env-") && contains(keys(var.groups.environment_groups), src)) ||
           (startswith(src, "ext-") && contains(keys(var.groups.external_service_groups), src)) ||
           (startswith(src, "ten-")) ||
+          (startswith(src, "cons-") && contains(keys(var.groups.consumer_groups), src)) ||
+          (startswith(src, "prov-") && contains(keys(var.groups.provider_groups), src)) ||
           (contains(keys(var.groups.emergency_groups), src))
         )
       ])
@@ -143,6 +147,8 @@ resource "nsxt_policy_security_policy" "emergency_policy" {
             startswith(dst, "env-") ? var.groups.environment_groups[dst] :
             startswith(dst, "ext-") ? var.groups.external_service_groups[dst] :
             startswith(dst, "ten-") ? var.groups.tenant_group_id :
+            startswith(dst, "cons-") ? var.groups.consumer_groups[dst] :
+            startswith(dst, "prov-") ? var.groups.provider_groups[dst] :
             contains(keys(var.groups.emergency_groups), dst) ? var.groups.emergency_groups[dst] : ""
           ]
           if(
@@ -150,6 +156,8 @@ resource "nsxt_policy_security_policy" "emergency_policy" {
             (startswith(dst, "env-") && contains(keys(var.groups.environment_groups), dst)) ||
             (startswith(dst, "ext-") && contains(keys(var.groups.external_service_groups), dst)) ||
             (startswith(dst, "ten-")) ||
+            (startswith(dst, "cons-") && contains(keys(var.groups.consumer_groups), dst)) ||
+            (startswith(dst, "prov-") && contains(keys(var.groups.provider_groups), dst)) ||
             (contains(keys(var.groups.emergency_groups), dst))
           )
       ])
@@ -252,6 +260,8 @@ resource "nsxt_policy_security_policy" "application_policy" {
           startswith(src, "env-") ? var.groups.environment_groups[src] :
           startswith(src, "ext-") ? var.groups.external_service_groups[src] :
           startswith(src, "ten-") ? var.groups.tenant_group_id :
+          startswith(src, "cons-") ? var.groups.consumer_groups[src] :
+          startswith(src, "prov-") ? var.groups.provider_groups[src] :
           contains(keys(var.groups.emergency_groups), src) ? var.groups.emergency_groups[src] : ""
         ]
         if(
@@ -259,6 +269,8 @@ resource "nsxt_policy_security_policy" "application_policy" {
           (startswith(src, "env-") && contains(keys(var.groups.environment_groups), src)) ||
           (startswith(src, "ext-") && contains(keys(var.groups.external_service_groups), src)) ||
           (startswith(src, "ten-")) ||
+          (startswith(src, "cons-") && contains(keys(var.groups.consumer_groups), src)) ||
+          (startswith(src, "prov-") && contains(keys(var.groups.provider_groups), src)) ||
           (contains(keys(var.groups.emergency_groups), src))
         )
       ])
@@ -281,6 +293,8 @@ resource "nsxt_policy_security_policy" "application_policy" {
             startswith(dst, "env-") ? var.groups.environment_groups[dst] :
             startswith(dst, "ext-") ? var.groups.external_service_groups[dst] :
             startswith(dst, "ten-") ? var.groups.tenant_group_id :
+            startswith(dst, "cons-") ? var.groups.consumer_groups[dst] :
+            startswith(dst, "prov-") ? var.groups.provider_groups[dst] :
             contains(keys(var.groups.emergency_groups), dst) ? var.groups.emergency_groups[dst] : ""
           ]
           if(
@@ -288,6 +302,8 @@ resource "nsxt_policy_security_policy" "application_policy" {
             (startswith(dst, "env-") && contains(keys(var.groups.environment_groups), dst)) ||
             (startswith(dst, "ext-") && contains(keys(var.groups.external_service_groups), dst)) ||
             (startswith(dst, "ten-")) ||
+            (startswith(dst, "cons-") && contains(keys(var.groups.consumer_groups), dst)) ||
+            (startswith(dst, "prov-") && contains(keys(var.groups.provider_groups), dst)) ||
             (contains(keys(var.groups.emergency_groups), dst))
           )
       ])

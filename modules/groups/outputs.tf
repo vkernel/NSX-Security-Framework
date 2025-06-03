@@ -135,4 +135,44 @@ output "emergency_groups_details" {
       criteria_type = length(compact(coalesce(try(local.tenant_data.emergency[emergency_key], []), []))) > 0 ? "tag_based" : "empty"
     }
   }
+}
+
+output "consumer_groups" {
+  description = "Map of consumer group paths"
+  value = {
+    for consumer_key, consumer in nsxt_policy_group.consumer_groups : consumer_key => consumer.path
+  }
+}
+
+output "consumer_groups_details" {
+  description = "Detailed information about consumer groups configuration"
+  value = {
+    for consumer_key, consumer in nsxt_policy_group.consumer_groups : consumer_key => {
+      display_name    = consumer.display_name
+      description     = consumer.description
+      path            = consumer.path
+      member_groups   = try(local.consumer_data[consumer_key], [])
+      criteria_type   = "path_expression"
+    }
+  }
+}
+
+output "provider_groups" {
+  description = "Map of provider group paths"
+  value = {
+    for provider_key, provider in nsxt_policy_group.provider_groups : provider_key => provider.path
+  }
+}
+
+output "provider_groups_details" {
+  description = "Detailed information about provider groups configuration"
+  value = {
+    for provider_key, provider in nsxt_policy_group.provider_groups : provider_key => {
+      display_name    = provider.display_name
+      description     = provider.description
+      path            = provider.path
+      member_groups   = try(local.provider_data[provider_key], [])
+      criteria_type   = "path_expression"
+    }
+  }
 } 

@@ -26,19 +26,35 @@ wld01:
         action: DROP
         scope_enabled: true  
   application_policy:
-    app-wld01-access-policy:
-      - name: Allow remote access to tenant
+    pol-wld01-consume-provider:
+      - name: Allow remote access to 3holapp web servers
         source: 
-          - ext-wld01-jumphosts
+          - cons-wld01-prod-3holapp-web
         destination: 
-          - ten-wld02
+          - prov-wld01-prod-3holapp-web
         services:  
-          - SSH
           - HTTPS
-          - ICMPv4
         action: ALLOW
         scope_enabled: true 
-    app-wld01-prod-3holapp-policy:
+      - name: Allow remote access to prod web servers
+        source: 
+          - cons-wld01-prod-web
+        destination: 
+          - prov-wld01-prod-web
+        services:  
+          - HTTPS
+        action: ALLOW
+        scope_enabled: true 
+      - name: Allow remote access to test web servers
+        source: 
+          - cons-wld01-test-web
+        destination: 
+          - prov-wld01-test-web
+        services:  
+          - HTTPS
+        action: ALLOW
+        scope_enabled: true 
+    pol-wld01-prod-3holapp-app:
       - name: Allow web servers to application servers on port 8443
         source: 
           - app-wld01-prod-3holapp-web
@@ -86,7 +102,7 @@ wld01:
           - env-wld01-prod
         action: DROP
         scope_enabled: true   
-    app-wld01-prod-policy:
+    pol-wld01-prod-app:
       - name: Allow web servers to application servers on port 8443
         source: 
           - app-wld01-prod-web
@@ -138,7 +154,7 @@ wld01:
           - env-wld01-prod
         action: DROP
         scope_enabled: true  
-    app-wld01-test-policy:
+    pol-wld01-test-app:
       - name: Allow web servers to application servers on port 8443
         source: 
           - app-wld01-test-web

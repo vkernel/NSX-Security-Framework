@@ -68,6 +68,14 @@ locals {
   # Emergency groups
   emergency_keys = toset(keys(try(local.tenant_data.emergency, {})))
 
+  # Consumer and provider groups
+  consumer_data = try(local.tenant_data.consumer, {})
+  provider_data = try(local.tenant_data.provider, {})
+
+  # Get the set of all consumer and provider keys (names)
+  consumer_keys = toset(keys(local.consumer_data))
+  provider_keys = toset(keys(local.provider_data))
+
   # Set up context block for NSX projects
   context_block = var.project_id != null ? {
     context = {
@@ -493,4 +501,130 @@ resource "nsxt_policy_group" "emergency_groups" {
       value       = local.tenant_tag
     }
   }
+}
+
+# Create a group for each consumer group
+resource "nsxt_policy_group" "consumer_groups" {
+  for_each = local.consumer_keys
+
+  display_name = each.key
+  description  = "Consumer group ${each.key} in tenant ${local.tenant_key}"
+  domain       = "default"
+
+  dynamic "context" {
+    for_each = var.project_id != null ? [1] : []
+    content {
+      project_id = var.project_id
+    }
+  }
+
+  # Add tags to identify the group
+  tag {
+    scope = "type"
+    tag   = "consumer-group"
+  }
+
+  tag {
+    scope = "tenant"
+    tag   = local.tenant_tag
+  }
+
+  tag {
+    scope = "consumer"
+    tag   = each.key
+  }
+
+  tag {
+    scope = "managed-by"
+    tag   = "terraform"
+  }
+
+  # Create single criteria block with all member group paths
+  criteria {
+    path_expression {
+      member_paths = [
+        for member in local.consumer_data[each.key] :
+        # Check if it's an external service group
+        contains(local.external_service_keys, member) ? nsxt_policy_group.external_service_groups[member].path :
+        # Check if it's an application group  
+        contains(local.application_keys, member) ? nsxt_policy_group.application_groups[member].path :
+        # Check if it's an environment group
+        contains(local.environment_keys, member) ? nsxt_policy_group.environment_groups[member].path :
+        # Check if it's a sub-application group
+        contains(local.sub_application_keys, member) ? nsxt_policy_group.sub_application_groups[member].path :
+        # Default to treating as external service if not found
+        "/infra/domains/default/groups/${member}"
+      ]
+    }
+  }
+
+  depends_on = [
+    nsxt_policy_group.external_service_groups,
+    nsxt_policy_group.application_groups,
+    nsxt_policy_group.environment_groups,
+    nsxt_policy_group.sub_application_groups
+  ]
+}
+
+# Create a group for each provider group
+resource "nsxt_policy_group" "provider_groups" {
+  for_each = local.provider_keys
+
+  display_name = each.key
+  description  = "Provider group ${each.key} in tenant ${local.tenant_key}"
+  domain       = "default"
+
+  dynamic "context" {
+    for_each = var.project_id != null ? [1] : []
+    content {
+      project_id = var.project_id
+    }
+  }
+
+  # Add tags to identify the group
+  tag {
+    scope = "type"
+    tag   = "provider-group"
+  }
+
+  tag {
+    scope = "tenant"
+    tag   = local.tenant_tag
+  }
+
+  tag {
+    scope = "provider"
+    tag   = each.key
+  }
+
+  tag {
+    scope = "managed-by"
+    tag   = "terraform"
+  }
+
+  # Create single criteria block with all member group paths
+  criteria {
+    path_expression {
+      member_paths = [
+        for member in local.provider_data[each.key] :
+        # Check if it's an external service group
+        contains(local.external_service_keys, member) ? nsxt_policy_group.external_service_groups[member].path :
+        # Check if it's an application group  
+        contains(local.application_keys, member) ? nsxt_policy_group.application_groups[member].path :
+        # Check if it's an environment group
+        contains(local.environment_keys, member) ? nsxt_policy_group.environment_groups[member].path :
+        # Check if it's a sub-application group
+        contains(local.sub_application_keys, member) ? nsxt_policy_group.sub_application_groups[member].path :
+        # Default to treating as external service if not found
+        "/infra/domains/default/groups/${member}"
+      ]
+    }
+  }
+
+  depends_on = [
+    nsxt_policy_group.external_service_groups,
+    nsxt_policy_group.application_groups,
+    nsxt_policy_group.environment_groups,
+    nsxt_policy_group.sub_application_groups
+  ]
 } 

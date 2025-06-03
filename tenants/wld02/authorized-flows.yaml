@@ -26,19 +26,19 @@ wld02:
         action: DROP
         scope_enabled: true 
   application_policy:
-    app-wld02-access-policy:
+    pol-wld01-consume-provider:
       - name: Allow remote access to tenant
         source: 
-          - ext-wld02-jumphosts
+          - cons-wld02-dev-3holapp
         destination: 
-          - ten-wld02
+          - prov-wld02-dev-3holapp
         services:  
           - SSH
           - HTTPS
           - ICMPv4
         action: ALLOW
         scope_enabled: true 
-    app-wld02-dev-3holapp-policy:
+    pol-wld02-dev-3holapp-app:
       - name: Allow web servers to application servers on port 8443
         source: 
           - app-wld02-dev-3holapp-web
@@ -85,7 +85,7 @@ wld02:
           - env-wld02-dev
         action: DROP
         scope_enabled: true   
-    app-wld02-dev-policy:
+    pol-wld02-dev-app:
       - name: Allow web servers to application servers on port 8443
         source: 
           - app-wld02-dev-web
@@ -136,7 +136,7 @@ wld02:
           - env-wld02-dev
         action: DROP
         scope_enabled: true  
-    app-wld02-acc-policy:
+    pol-wld02-acc-app:
       - name: Allow web servers to application servers on port 8443
         source: 
           - app-wld02-acc-web

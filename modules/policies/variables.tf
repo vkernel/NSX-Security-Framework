@@ -22,6 +22,8 @@ variable "groups" {
     sub_application_groups  = map(string)
     external_service_groups = map(string)
     emergency_groups        = map(string)
+    consumer_groups         = map(string)
+    provider_groups         = map(string)
   })
 }
 
