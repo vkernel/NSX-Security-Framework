@@ -270,9 +270,52 @@ resource "nsxt_policy_group" "external_service_groups" {
     }
   }
 
-  criteria {
-    ipaddress_expression {
-      ip_addresses = local.external_services[each.key]
+  # Create criteria for IP addresses/CIDRs (if any exist)
+  dynamic "criteria" {
+    for_each = length([
+      for entry in local.external_services[each.key] : entry
+      if can(regex("^([0-9]{1,3}\\.){3}[0-9]{1,3}(/[0-9]{1,2})?$", entry))
+    ]) > 0 ? [1] : []
+    
+    content {
+      ipaddress_expression {
+        ip_addresses = [
+          for entry in local.external_services[each.key] : entry
+          if can(regex("^([0-9]{1,3}\\.){3}[0-9]{1,3}(/[0-9]{1,2})?$", entry))
+        ]
+      }
+    }
+  }
+
+  # Add conjunction if both IP addresses and VMs exist
+  dynamic "conjunction" {
+    for_each = length([
+      for entry in local.external_services[each.key] : entry
+      if can(regex("^([0-9]{1,3}\\.){3}[0-9]{1,3}(/[0-9]{1,2})?$", entry))
+    ]) > 0 && length([
+      for entry in local.external_services[each.key] : entry
+      if !can(regex("^([0-9]{1,3}\\.){3}[0-9]{1,3}(/[0-9]{1,2})?$", entry))
+    ]) > 0 ? [1] : []
+    
+    content {
+      operator = "OR"
+    }
+  }
+
+  # Create criteria for VM names (if any exist)
+  dynamic "criteria" {
+    for_each = length([
+      for entry in local.external_services[each.key] : entry
+      if !can(regex("^([0-9]{1,3}\\.){3}[0-9]{1,3}(/[0-9]{1,2})?$", entry))
+    ]) > 0 ? [1] : []
+    
+    content {
+      condition {
+        key         = "Tag"
+        member_type = "VirtualMachine"
+        operator    = "EQUALS"
+        value       = each.key
+      }
     }
   }
 }

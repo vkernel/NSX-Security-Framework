@@ -102,56 +102,91 @@ locals {
 
   # Derive the list of emergency VMs from the keys of the mapping
   emergency_vms = keys(local.emergency_vm_tags)
+
+  # External services processing
+  external_services = try(local.tenant_data.external, {})
+  
+  # Create a mapping of VM name to external service keys
+  external_service_vm_tags = merge(
+    [
+      for ext_key, ext_list in local.external_services : {
+        for entry in ext_list : entry => ext_key
+        # Only include entries that are NOT IP addresses/CIDRs (i.e., VM names)
+        if !can(regex("^([0-9]{1,3}\\.){3}[0-9]{1,3}(/[0-9]{1,2})?$", entry))
+      }
+    ]...
+  )
+
+  # Get external service VMs (VM names from external services)
+  external_service_vms = keys(local.external_service_vm_tags)
+  
+  # Combine all VMs that need tagging (internal + external service VMs)
+  all_vms_including_external = toset(concat(
+    [for vm in local.all_vms : vm],
+    local.external_service_vms
+  ))
 }
 
 # Get VM instances by display name
 data "nsxt_policy_vm" "vms" {
-  for_each = local.all_vms
+  for_each = local.all_vms_including_external
 
   display_name = each.value
 }
 
 # Apply all hierarchy tags to VMs
 resource "nsxt_policy_vm_tags" "hierarchy_tags" {
-  for_each = local.vm_base_data
+  for_each = local.all_vms_including_external
 
   instance_id = data.nsxt_policy_vm.vms[each.key].instance_id
 
-  # Tenant tag
+  # Tenant tag (for all VMs)
   tag {
     scope = "tenant"
     tag   = local.tenant_tag
   }
 
-  # Environment tag
-  tag {
-    scope = "environment"
-    tag   = each.value.env_key
+  # Environment tag (only for internal VMs)
+  dynamic "tag" {
+    for_each = contains(local.all_vms, each.key) ? [local.vm_base_data[each.key].env_key] : []
+    content {
+      scope = "environment"
+      tag   = tag.value
+    }
   }
 
-  # Application tags - one per app this VM belongs to
+  # Application tags - one per app this VM belongs to (only for internal VMs)
   dynamic "tag" {
-    for_each = local.app_tags_by_vm[each.key]
+    for_each = contains(local.all_vms, each.key) ? local.app_tags_by_vm[each.key] : []
     content {
       scope = "application"
       tag   = tag.value
     }
   }
 
-  # Sub-application tags - one per sub-app this VM belongs to
+  # Sub-application tags - one per sub-app this VM belongs to (only for internal VMs)
   dynamic "tag" {
-    for_each = local.sub_app_tags_by_vm[each.key]
+    for_each = contains(local.all_vms, each.key) ? local.sub_app_tags_by_vm[each.key] : []
     content {
       scope = "sub-application"
       tag   = tag.value
     }
   }
 
-  # Emergency tag (if present)
+  # Emergency tag (if present, only for internal VMs)
   dynamic "tag" {
-    for_each = lookup(local.emergency_vm_tags, each.key, null) != null ? [local.emergency_vm_tags[each.key]] : []
+    for_each = contains(local.all_vms, each.key) && lookup(local.emergency_vm_tags, each.key, null) != null ? [local.emergency_vm_tags[each.key]] : []
     content {
       scope = "emergency"
+      tag   = tag.value
+    }
+  }
+
+  # External service tag (for external service VMs)
+  dynamic "tag" {
+    for_each = lookup(local.external_service_vm_tags, each.key, null) != null ? [local.external_service_vm_tags[each.key]] : []
+    content {
+      scope = "external-service"
       tag   = tag.value
     }
   }

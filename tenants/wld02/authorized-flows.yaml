@@ -37,7 +37,7 @@ wld02:
           - HTTPS
           - ICMPv4
         action: ALLOW
-        scope_enabled: true 
+        scope_enabled: false 
     app-wld02-dev-3holapp-policy:
       - name: Allow web servers to application servers on port 8443
         source: 
