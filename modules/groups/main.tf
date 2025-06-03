@@ -270,13 +270,9 @@ resource "nsxt_policy_group" "external_service_groups" {
     }
   }
 
-  dynamic "criteria" {
-    for_each = toset(local.external_services[each.key])
-
-    content {
-      ipaddress_expression {
-        ip_addresses = [criteria.value]
-      }
+  criteria {
+    ipaddress_expression {
+      ip_addresses = local.external_services[each.key]
     }
   }
 }

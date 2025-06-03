@@ -32,11 +32,14 @@ wld02:  # Tenant Key
         - a-web-03a
   external:
     ext-wld02-dns:  # External Services Key  
-      - 192.168.12.10  
+      - 192.168.12.10 
+      - 192.168.12.0/24 
     ext-wld02-ntp:  # External Services Key  
       - 192.168.12.1  
+      - 192.168.12.0/24 
     ext-wld02-jumphosts:  # External Services Key  
       - 10.10.89.11 
+      - 192.168.12.10
   emergency:
     emg-wld02:  # Emergency Key
       - 
