@@ -13,7 +13,11 @@ locals {
   # Extract policy data
   environment_policy      = try(local.tenant_data.environment_policy, {})
   application_policy_map  = try(local.tenant_data.application_policy, {})
-  application_policy_keys = keys(local.application_policy_map)
+  
+  # Preserve the order of application policies from YAML by creating an ordered list
+  application_policy_keys_ordered = [
+    for key in keys(try(local.tenant_data.application_policy, {})) : key
+  ]
 
   # Emergency policy should not be used in project context
   emergency_policy = var.project_id == null ? try(local.tenant_data.emergency_policy, []) : []
@@ -42,7 +46,36 @@ locals {
   # Combine environment rules
   environment_rules = concat(local.allowed_env_rules, local.blocked_env_rules)
 
-  # Process application policy rules per application firewall
+  # Process application policy rules per application firewall - preserve order using list
+  application_policies_ordered = [
+    for policy_key in local.application_policy_keys_ordered : {
+      policy_key = policy_key
+      rules = [
+        for rule in local.application_policy_map[policy_key] : {
+          name         = try(rule.name, "app-rule-${index(local.application_policy_map[policy_key], rule) + 1}")
+          sources      = rule.source
+          destinations = rule.destination
+          # Add predefined services if they exist
+          service_keys = try(rule.services, [])
+          # Add custom services if they exist (new format)
+          custom_services = try(rule.custom_services, [])
+          # Process both predefined and custom context profiles
+          predefined_profiles = try(rule.context_profiles, [])
+          # Get list of custom context profile references (new format)
+          custom_profiles = try(rule.custom_context_profiles, [])
+          # Check if we have any custom profiles
+          has_custom_profiles = length(try(rule.custom_context_profiles, [])) > 0
+          # Check if we have both predefined and custom profiles
+          has_multiple_profiles = length(try(rule.context_profiles, [])) > 0 || length(try(rule.custom_context_profiles, [])) > 0
+          action               = try(rule.action, "ALLOW")
+          applied_to           = try(rule.applied_to, [])
+          policy_key           = policy_key
+        }
+      ]
+    }
+  ]
+
+  # Also keep the old format for compatibility with existing code
   application_policies = {
     for policy_key, rules in local.application_policy_map :
     policy_key => [
@@ -248,14 +281,14 @@ resource "nsxt_policy_security_policy" "environment_policy" {
 
 # Create application security policy
 resource "nsxt_policy_security_policy" "application_policy" {
-  for_each = local.application_policies
+  count = length(local.application_policies_ordered)
 
-  display_name    = "${each.key}"
-  description     = "Application security policy for tenant ${local.tenant_key} - ${each.key}"
+  display_name    = local.application_policies_ordered[count.index].policy_key
+  description     = "Application security policy for tenant ${local.tenant_key} - ${local.application_policies_ordered[count.index].policy_key}"
   category        = "Application"
   locked          = false
   stateful        = true
-  sequence_number = 3 # Third priority after emergency and environment
+  sequence_number = 3 + count.index # Incremental sequence starting from 3, ensuring proper ordering
 
   dynamic "context" {
     for_each = var.project_id != null ? [1] : []
@@ -265,7 +298,7 @@ resource "nsxt_policy_security_policy" "application_policy" {
   }
 
   dynamic "rule" {
-    for_each = each.value
+    for_each = local.application_policies_ordered[count.index].rules
     content {
       display_name = rule.value.name
       # Convert applied_to groups to group IDs, empty list if no applied_to specified (DFW scope)
