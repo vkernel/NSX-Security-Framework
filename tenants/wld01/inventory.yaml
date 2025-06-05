@@ -1,31 +1,31 @@
 ---
 # Format: Tenant > Internal/External > Environment > Application > Sub Application > Resources
-wld01:  # Tenant Key
+wld01: 
   internal:
-    env-wld01-prod:  # Environment Key
-      app-wld01-prod-3holapp:  # Application Key
-        app-wld01-prod-3holapp-database:  # Sub Application Key
-          - p-db-01a  # VM name
-        app-wld01-prod-3holapp-application:  # Sub Application Key
+    env-wld01-prod:  
+      app-wld01-prod-3holapp:  
+        app-wld01-prod-3holapp-database:  
+          - p-db-01a  
+        app-wld01-prod-3holapp-application:  
           - p-app-01a
-        app-wld01-prod-3holapp-web:  # Sub Application Key 
+        app-wld01-prod-3holapp-web:   
           - p-web-01a
           - p-web-02a
           - p-web-03a
-      app-wld01-prod-database:  # Application Key
-        - p-db-01a  # VM name
-      app-wld01-prod-application:  # Application Key
+      app-wld01-prod-database:  
+        - p-db-01a  
+      app-wld01-prod-application:  
         - p-app-01a
-      app-wld01-prod-web:  # Application Key
+      app-wld01-prod-web:  
         - p-web-01a
         - p-web-02a
         - p-web-03a
-    env-wld01-test:  # Environment Key
-      app-wld01-test-database:  # Application Key
-        - t-db-01a  # VM name
-      app-wld01-test-application:  # Application Key
+    env-wld01-test:  
+      app-wld01-test-database:  
+        - t-db-01a  
+      app-wld01-test-application:  
         - t-app-01a 
-      app-wld01-test-web:  # Application Key
+      app-wld01-test-web:  
         - t-web-01a
         - t-web-02a
         - t-web-03a
@@ -37,21 +37,21 @@ wld01:  # Tenant Key
     ext-wld01-jumphosts:  # External Services Key  
       - 10.10.89.11 
   consumer:
-    cons-wld01-prod-3holapp-web:  # Application Key
+    cons-wld01-prod-3holapp-web:  
       - ext-wld01-jumphosts
-    cons-wld01-prod-web:  # Application Key
+    cons-wld01-prod-web:  
       - ext-wld01-jumphosts
-    cons-wld01-test-web:  # Application Key
+    cons-wld01-test-web:  
       - ext-wld01-jumphosts
   provider:
-    prov-wld01-prod-3holapp-web:  # Application Key
+    prov-wld01-prod-3holapp-web:  
       - app-wld01-prod-3holapp-web
-    prov-wld01-prod-web:  # Application Key
+    prov-wld01-prod-web:  
       - app-wld01-prod-web
-    prov-wld01-test-web:  # Application Key
+    prov-wld01-test-web:  
       - app-wld01-test-web
   emergency:
-    emg-wld01:  # Emergency Key
+    emg-wld01:  
       []
   custom_context_profiles:
     cp-wld01-custom-context-profile-name2:

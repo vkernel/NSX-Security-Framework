@@ -7,7 +7,8 @@ wld01:
       destination: 
         - any
       action: ALLOW
-      scope_enabled: true  
+      applied_to:
+        -  ten-wld01
   environment_policy:
     allowed_communications:
       - name: Allow prod environment to test environment
@@ -16,7 +17,9 @@ wld01:
         destination: 
           - env-wld01-test
         action: JUMP_TO_APPLICATION
-        scope_enabled: true  
+        applied_to:
+          - env-wld01-prod
+          - env-wld01-test
     blocked_communications:
       - name: Block test environment from prod environment
         source: 
@@ -24,7 +27,9 @@ wld01:
         destination: 
           - env-wld01-prod
         action: DROP
-        scope_enabled: true  
+        applied_to:
+          - env-wld01-test
+          - env-wld01-prod
   application_policy:
     pol-wld01-consume-provider:
       - name: Allow remote access to 3holapp web servers
@@ -35,7 +40,9 @@ wld01:
         services:  
           - HTTPS
         action: ALLOW
-        scope_enabled: true 
+        applied_to:
+          -  cons-wld01-prod-3holapp-web
+          -  prov-wld01-prod-3holapp-web
       - name: Allow remote access to prod web servers
         source: 
           - cons-wld01-prod-web
@@ -44,7 +51,9 @@ wld01:
         services:  
           - HTTPS
         action: ALLOW
-        scope_enabled: true 
+        applied_to:
+          -  cons-wld01-prod-web
+          -  prov-wld01-prod-web
       - name: Allow remote access to test web servers
         source: 
           - cons-wld01-test-web
@@ -53,7 +62,9 @@ wld01:
         services:  
           - HTTPS
         action: ALLOW
-        scope_enabled: true 
+        applied_to:
+          -  cons-wld01-test-web
+          -  prov-wld01-test-web
     pol-wld01-prod-3holapp-app:
       - name: Allow web servers to application servers on port 8443
         source: 
@@ -63,7 +74,9 @@ wld01:
         custom_services:  
           - svc-wld01-custom-service-name1
         action: ALLOW
-        scope_enabled: true  
+        applied_to:
+          -  app-wld01-prod-3holapp-web
+          -  app-wld01-prod-3holapp-application
       - name: Allow application servers to database servers on port 3306
         source: 
           - app-wld01-prod-3holapp-application
@@ -72,7 +85,9 @@ wld01:
         services:
           - MySQL
         action: ALLOW
-        scope_enabled: true  
+        applied_to:
+          -  app-wld01-prod-3holapp-application
+          -  app-wld01-prod-3holapp-database
       - name: Allow wld01 servers to external DNS on port 53
         source: 
           - app-wld01-prod-3holapp
@@ -81,7 +96,8 @@ wld01:
         services:
           - DNS-TCP
         action: ALLOW
-        scope_enabled: true  
+        applied_to:
+          -  app-wld01-prod-3holapp
       - name: Example of context profiles
         source: 
           - app-wld01-prod-3holapp
@@ -94,14 +110,16 @@ wld01:
           - cp-wld01-custom-context-profile-name2
           - cp-wld01-custom-context-profile-name3
         action: ALLOW
-        scope_enabled: true 
+        applied_to:
+          -  app-wld01-prod-3holapp
       - name: Last Rule
         source: 
-          - env-wld01-prod
+          - app-wld01-prod-3holapp
         destination: 
-          - env-wld01-prod
+          - app-wld01-prod-3holapp
         action: DROP
-        scope_enabled: true   
+        applied_to:
+          -  app-wld01-prod-3holapp
     pol-wld01-prod-app:
       - name: Allow web servers to application servers on port 8443
         source: 
@@ -111,7 +129,9 @@ wld01:
         custom_services:  
           - svc-wld01-custom-service-name1
         action: ALLOW
-        scope_enabled: true  
+        applied_to:
+          -  app-wld01-prod-web
+          -  app-wld01-prod-application
       - name: Allow application servers to database servers on port 3306
         source: 
           - app-wld01-prod-application
@@ -120,7 +140,9 @@ wld01:
         services:
           - MySQL
         action: ALLOW
-        scope_enabled: true  
+        applied_to:
+          -  app-wld01-prod-application
+          -  app-wld01-prod-database
       - name: Allow wld01 servers to external DNS on port 53
         source: 
           - app-wld01-prod-database
@@ -131,7 +153,10 @@ wld01:
         services:
           - DNS-TCP
         action: ALLOW
-        scope_enabled: true  
+        applied_to:
+          -  app-wld01-prod-database
+          -  app-wld01-prod-application
+          -  app-wld01-prod-web
       - name: Example of context profiles
         source: 
           - app-wld01-prod-database
@@ -146,14 +171,24 @@ wld01:
           - cp-wld01-custom-context-profile-name2
           - cp-wld01-custom-context-profile-name3
         action: ALLOW
-        scope_enabled: true  
+        applied_to:
+          -  app-wld01-prod-database
+          -  app-wld01-prod-application
+          -  app-wld01-prod-web
       - name: Last Rule
         source: 
-          - env-wld01-prod
+          -  app-wld01-prod-database
+          -  app-wld01-prod-application
+          -  app-wld01-prod-web
         destination: 
-          - env-wld01-prod
+          -  app-wld01-prod-database
+          -  app-wld01-prod-application
+          -  app-wld01-prod-web
         action: DROP
-        scope_enabled: true  
+        applied_to:
+          -  app-wld01-prod-database
+          -  app-wld01-prod-application
+          -  app-wld01-prod-web
     pol-wld01-test-app:
       - name: Allow web servers to application servers on port 8443
         source: 
@@ -163,7 +198,9 @@ wld01:
         custom_services:  
           - svc-wld01-custom-service-name1
         action: ALLOW
-        scope_enabled: true  
+        applied_to:
+          -  app-wld01-test-web
+          -  app-wld01-test-application
       - name: Allow application servers to database servers on port 3306
         source: 
           - app-wld01-test-application
@@ -172,7 +209,9 @@ wld01:
         services:
           - MySQL
         action: ALLOW
-        scope_enabled: true  
+        applied_to:
+          -  app-wld01-test-database
+          -  app-wld01-test-application
       - name: Allow wld01 servers to external DNS on port 53
         source: 
           - app-wld01-test-database
@@ -183,7 +222,10 @@ wld01:
         services:
           - DNS-TCP
         action: ALLOW
-        scope_enabled: true  
+        applied_to:
+          -  app-wld01-test-database
+          -  app-wld01-test-application
+          -  app-wld01-test-web
       - name: Example of context profiles
         source: 
           - app-wld01-test-database
@@ -198,11 +240,21 @@ wld01:
           - cp-wld01-custom-context-profile-name2
           - cp-wld01-custom-context-profile-name3
         action: ALLOW
-        scope_enabled: true  
+        applied_to:
+          - app-wld01-test-database
+          - app-wld01-test-application
+          - app-wld01-test-web
       - name: Last Rule
         source: 
-          - env-wld01-test
+          - app-wld01-test-database
+          - app-wld01-test-application
+          - app-wld01-test-web
         destination: 
-          - env-wld01-prod
+          - app-wld01-test-database
+          - app-wld01-test-application
+          - app-wld01-test-web
         action: DROP
-        scope_enabled: true  
+        applied_to:
+          - app-wld01-test-database
+          - app-wld01-test-application
+          - app-wld01-test-web

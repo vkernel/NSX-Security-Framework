@@ -7,7 +7,8 @@ wld02:
       destination: 
         - any
       action: ALLOW
-      scope_enabled: true  
+      applied_to:
+        -  ten-wld02
   environment_policy:
     allowed_communications:
       - name: Allow dev environment to acc environment
@@ -16,7 +17,9 @@ wld02:
         destination: 
           - env-wld02-acc
         action: JUMP_TO_APPLICATION
-        scope_enabled: true  
+        applied_to:
+          -  env-wld02-dev
+          -  env-wld02-acc
     blocked_communications:
       - name: Block acc environment from dev environment
         source: 
@@ -24,7 +27,9 @@ wld02:
         destination: 
           - env-wld02-dev
         action: DROP
-        scope_enabled: true 
+        applied_to:
+          -  env-wld02-acc
+          -  env-wld02-dev
   application_policy:
     pol-wld01-consume-provider:
       - name: Allow remote access to tenant
@@ -37,7 +42,9 @@ wld02:
           - HTTPS
           - ICMPv4
         action: ALLOW
-        scope_enabled: true 
+        applied_to:
+          -  cons-wld02-dev-3holapp
+          -  prov-wld02-dev-3holapp
     pol-wld02-dev-3holapp-app:
       - name: Allow web servers to application servers on port 8443
         source: 
@@ -47,7 +54,9 @@ wld02:
         custom_services:  
           - svc-wld02-custom-service-name1
         action: ALLOW
-        scope_enabled: true  
+        applied_to:
+          -  app-wld02-dev-3holapp-web
+          -  app-wld02-dev-3holapp-application
       - name: Allow application servers to database servers on port 3306
         source: 
           - app-wld02-dev-3holapp-application
@@ -56,7 +65,9 @@ wld02:
         services:
           - MySQL
         action: ALLOW
-        scope_enabled: true  
+        applied_to:
+          -  app-wld02-dev-3holapp-application
+          -  app-wld02-dev-3holapp-database
       - name: Allow wld02 servers to external DNS on port 53
         source: 
           - app-wld02-dev-3holapp
@@ -65,7 +76,8 @@ wld02:
         services:
           - DNS-TCP
         action: ALLOW
-        scope_enabled: true  
+        applied_to:
+          -  app-wld02-dev-3holapp
       - name: Example of context profiles
         source: 
           - app-wld02-dev-3holapp
@@ -77,14 +89,16 @@ wld02:
         custom_context_profiles:
           - cp-wld02-custom-context-profile-name1
         action: ALLOW
-        scope_enabled: true 
+        applied_to:
+          -  app-wld02-dev-3holapp
       - name: Last Rule
         source: 
-          - env-wld02-dev
+          - app-wld02-dev-3holapp
         destination: 
-          - env-wld02-dev
+          - app-wld02-dev-3holapp
         action: DROP
-        scope_enabled: true   
+        applied_to:
+          -  app-wld02-dev-3holapp
     pol-wld02-dev-app:
       - name: Allow web servers to application servers on port 8443
         source: 
@@ -94,7 +108,9 @@ wld02:
         custom_services:  
           - svc-wld02-custom-service-name1
         action: ALLOW
-        scope_enabled: true  
+        applied_to:
+          -  app-wld02-dev-web
+          -  app-wld02-dev-application
       - name: Allow application servers to database servers on port 3306
         source: 
           - app-wld02-dev-application
@@ -103,7 +119,9 @@ wld02:
         services:
           - MySQL
         action: ALLOW
-        scope_enabled: true  
+        applied_to:
+          -  app-wld02-dev-application
+          -  app-wld02-dev-database
       - name: Allow wld02 servers to external DNS on port 53
         source: 
           - app-wld02-dev-database
@@ -114,9 +132,7 @@ wld02:
         services:
           - DNS-TCP
         action: ALLOW
-        scope_enabled: true  
-      - name: Example of context profiles
-        source: 
+        applied_to:
           - app-wld02-dev-database
           - app-wld02-dev-application
           - app-wld02-dev-web
@@ -128,25 +144,36 @@ wld02:
         custom_context_profiles:
           - cp-wld02-custom-context-profile-name1
         action: ALLOW
-        scope_enabled: true  
+        applied_to:
+          - app-wld02-dev-database
+          - app-wld02-dev-application
+          - app-wld02-dev-web
       - name: Last Rule
         source: 
-          - env-wld02-dev
+          - app-wld02-dev-database
+          - app-wld02-dev-application
+          - app-wld02-dev-web
         destination: 
-          - env-wld02-dev
+          - app-wld02-dev-database
+          - app-wld02-dev-application
+          - app-wld02-dev-web
         action: DROP
-        scope_enabled: true  
+        applied_to:
+          - app-wld02-dev-database
+          - app-wld02-dev-application
+          - app-wld02-dev-web
     pol-wld02-acc-app:
       - name: Allow web servers to application servers on port 8443
         source: 
           - app-wld02-acc-web
-          - app-wld02-dev-web
         destination: 
           - app-wld02-acc-application
         custom_services:  
           - svc-wld02-custom-service-name1
         action: ALLOW
-        scope_enabled: true  
+        applied_to:
+          -  app-wld02-acc-web
+          -  app-wld02-acc-application
       - name: Allow application servers to database servers on port 3306
         source: 
           - app-wld02-acc-application
@@ -155,7 +182,9 @@ wld02:
         services:
           - MySQL
         action: ALLOW
-        scope_enabled: true  
+        applied_to:
+          -  app-wld02-acc-application
+          -  app-wld02-acc-database
       - name: Allow wld02 servers to external DNS on port 53
         source: 
           - app-wld02-acc-database
@@ -166,7 +195,10 @@ wld02:
         services:
           - DNS-TCP
         action: ALLOW
-        scope_enabled: true  
+        applied_to:
+          -  app-wld02-acc-database
+          -  app-wld02-acc-application
+          -  app-wld02-acc-web
       - name: Example of context profiles
         source: 
           - app-wld02-acc-database
@@ -180,11 +212,21 @@ wld02:
         custom_context_profiles:
           - cp-wld02-custom-context-profile-name1
         action: ALLOW
-        scope_enabled: true  
+        applied_to:
+          -  app-wld02-acc-database
+          -  app-wld02-acc-application
+          -  app-wld02-acc-web
       - name: Last Rule
         source: 
-          - env-wld02-acc
+          - app-wld02-acc-database
+          - app-wld02-acc-application
+          - app-wld02-acc-web
         destination: 
-          - env-wld02-acc
+          - app-wld02-acc-database
+          - app-wld02-acc-application
+          - app-wld02-acc-web
         action: DROP
-        scope_enabled: true  
+        applied_to:
+          - app-wld02-acc-database
+          - app-wld02-acc-application
+          - app-wld02-acc-web
