@@ -21,21 +21,21 @@ locals {
   # Process allowed and blocked environment communications
   allowed_env_rules = [
     for rule in try(local.environment_policy.allowed_communications, []) : {
-      name          = try(rule.name, "allow-${rule.source}-to-${rule.destination}")
-      source        = rule.source
-      destination   = rule.destination
-      action        = try(rule.action, "ALLOW")
-      scope_enabled = try(rule.scope_enabled, true)
+      name        = try(rule.name, "allow-${rule.source}-to-${rule.destination}")
+      source      = rule.source
+      destination = rule.destination
+      action      = try(rule.action, "ALLOW")
+      applied_to  = try(rule.applied_to, [])
     }
   ]
 
   blocked_env_rules = [
     for rule in try(local.environment_policy.blocked_communications, []) : {
-      name          = try(rule.name, "block-${rule.source}-to-${rule.destination}")
-      source        = rule.source
-      destination   = rule.destination
-      action        = try(rule.action, "DROP")
-      scope_enabled = try(rule.scope_enabled, true)
+      name        = try(rule.name, "block-${rule.source}-to-${rule.destination}")
+      source      = rule.source
+      destination = rule.destination
+      action      = try(rule.action, "DROP")
+      applied_to  = try(rule.applied_to, [])
     }
   ]
 
@@ -62,9 +62,9 @@ locals {
         has_custom_profiles = length(try(rule.custom_context_profiles, [])) > 0
         # Check if we have both predefined and custom profiles
         has_multiple_profiles = length(try(rule.context_profiles, [])) > 0 || length(try(rule.custom_context_profiles, [])) > 0
-        action                = try(rule.action, "ALLOW")
-        scope_enabled         = try(rule.scope_enabled, true)
-        policy_key            = policy_key
+        action               = try(rule.action, "ALLOW")
+        applied_to           = try(rule.applied_to, [])
+        policy_key           = policy_key
       }
     ]
   }
@@ -72,11 +72,11 @@ locals {
   # Process emergency policy rules
   emergency_rules = [
     for rule in local.emergency_policy : {
-      name          = try(rule.name, "emergency-rule-${index(local.emergency_policy, rule) + 1}")
-      sources       = rule.source
-      destinations  = rule.destination
-      action        = try(rule.action, "ALLOW")
-      scope_enabled = try(rule.scope_enabled, true)
+      name         = try(rule.name, "emergency-rule-${index(local.emergency_policy, rule) + 1}")
+      sources      = rule.source
+      destinations = rule.destination
+      action       = try(rule.action, "ALLOW")
+      applied_to   = try(rule.applied_to, [])
     }
   ]
 }
@@ -96,8 +96,32 @@ resource "nsxt_policy_security_policy" "emergency_policy" {
     for_each = local.emergency_rules
     content {
       display_name = rule.value.name
-      # Conditionally set scope based on scope_enabled flag
-      scope = rule.value.scope_enabled ? [var.groups.tenant_group_id] : []
+      # Convert applied_to groups to group IDs, empty list if no applied_to specified (DFW scope)
+      scope = length(rule.value.applied_to) > 0 ? flatten([
+        for group in rule.value.applied_to : [
+          # Look up the group path based on the prefix
+          startswith(group, "app-") ? (
+            contains(keys(var.groups.sub_application_groups), group) ?
+            var.groups.sub_application_groups[group] :
+            var.groups.application_groups[group]
+          ) :
+          startswith(group, "env-") ? var.groups.environment_groups[group] :
+          startswith(group, "ext-") ? var.groups.external_service_groups[group] :
+          startswith(group, "ten-") ? var.groups.tenant_group_id :
+          startswith(group, "cons-") ? var.groups.consumer_groups[group] :
+          startswith(group, "prov-") ? var.groups.provider_groups[group] :
+          contains(keys(var.groups.emergency_groups), group) ? var.groups.emergency_groups[group] : ""
+        ]
+        if(
+          (startswith(group, "app-") && (contains(keys(var.groups.sub_application_groups), group) || contains(keys(var.groups.application_groups), group))) ||
+          (startswith(group, "env-") && contains(keys(var.groups.environment_groups), group)) ||
+          (startswith(group, "ext-") && contains(keys(var.groups.external_service_groups), group)) ||
+          (startswith(group, "ten-")) ||
+          (startswith(group, "cons-") && contains(keys(var.groups.consumer_groups), group)) ||
+          (startswith(group, "prov-") && contains(keys(var.groups.provider_groups), group)) ||
+          (contains(keys(var.groups.emergency_groups), group))
+        )
+      ]) : []
 
       # Handle source groups with appropriate lookup based on format
       source_groups = flatten([
@@ -190,8 +214,13 @@ resource "nsxt_policy_security_policy" "environment_policy" {
     for_each = local.environment_rules
     content {
       display_name = rule.value.name
-      # Conditionally set scope based on scope_enabled flag
-      scope = rule.value.scope_enabled ? [var.groups.tenant_group_id] : []
+      # Convert applied_to groups to group IDs, empty list if no applied_to specified (DFW scope)
+      scope = length(rule.value.applied_to) > 0 ? flatten([
+        for group in rule.value.applied_to : [
+          var.groups.environment_groups[group]
+        ]
+        if contains(keys(var.groups.environment_groups), group)
+      ]) : []
 
       # Handle source as either string or list
       source_groups = flatten([
@@ -239,8 +268,32 @@ resource "nsxt_policy_security_policy" "application_policy" {
     for_each = each.value
     content {
       display_name = rule.value.name
-      # Conditionally set scope based on scope_enabled flag
-      scope = rule.value.scope_enabled ? [var.groups.tenant_group_id] : []
+      # Convert applied_to groups to group IDs, empty list if no applied_to specified (DFW scope)
+      scope = length(rule.value.applied_to) > 0 ? flatten([
+        for group in rule.value.applied_to : [
+          # Look up the group path based on the prefix
+          startswith(group, "app-") ? (
+            contains(keys(var.groups.sub_application_groups), group) ?
+            var.groups.sub_application_groups[group] :
+            var.groups.application_groups[group]
+          ) :
+          startswith(group, "env-") ? var.groups.environment_groups[group] :
+          startswith(group, "ext-") ? var.groups.external_service_groups[group] :
+          startswith(group, "ten-") ? var.groups.tenant_group_id :
+          startswith(group, "cons-") ? var.groups.consumer_groups[group] :
+          startswith(group, "prov-") ? var.groups.provider_groups[group] :
+          contains(keys(var.groups.emergency_groups), group) ? var.groups.emergency_groups[group] : ""
+        ]
+        if(
+          (startswith(group, "app-") && (contains(keys(var.groups.sub_application_groups), group) || contains(keys(var.groups.application_groups), group))) ||
+          (startswith(group, "env-") && contains(keys(var.groups.environment_groups), group)) ||
+          (startswith(group, "ext-") && contains(keys(var.groups.external_service_groups), group)) ||
+          (startswith(group, "ten-")) ||
+          (startswith(group, "cons-") && contains(keys(var.groups.consumer_groups), group)) ||
+          (startswith(group, "prov-") && contains(keys(var.groups.provider_groups), group)) ||
+          (contains(keys(var.groups.emergency_groups), group))
+        )
+      ]) : []
 
       # Handle source groups with appropriate lookup based on format - handle ANY case-insensitively
       source_groups = contains(

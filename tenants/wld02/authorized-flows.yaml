@@ -136,6 +136,11 @@ wld02:
           - app-wld02-dev-database
           - app-wld02-dev-application
           - app-wld02-dev-web
+      - name: Example of context profiles
+        source: 
+          - app-wld02-dev-database
+          - app-wld02-dev-application
+          - app-wld02-dev-web
         destination: 
           - ext-wld02-dns
         context_profiles:

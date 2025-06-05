@@ -251,7 +251,8 @@ application_policy:
         - ICMPv4
         - HTTPS
       action: ALLOW
-      scope_enabled: false
+      applied_to:
+        - ten-wld01
     - name: Allow web servers to application servers
       source: 
         - app-wld01-prod-web
@@ -260,7 +261,9 @@ application_policy:
       custom_services:  
         - svc-wld01-custom-service-name1
       action: ALLOW
-      scope_enabled: true
+      applied_to:
+        - app-wld01-prod-web
+        - app-wld01-prod-application
   
   app-wld01-app02:  # Second application firewall
     - name: Allow database access for app02
@@ -271,7 +274,9 @@ application_policy:
       services:
         - MySQL
       action: ALLOW
-      scope_enabled: true
+      applied_to:
+        - app-wld01-prod-application
+        - app-wld01-prod-database
 ```
 
 #### Benefits of Multiple Application Firewalls
@@ -292,7 +297,7 @@ You can specify traffic flows using several methods:
 
 ### Controlling Scope for Security Rules
 
-Each rule can optionally control whether the tenant scope is applied:
+Each rule can optionally specify which groups the rule should be applied to using the `applied_to` field:
 
 ```yaml
 - name: Allow web servers to application servers
@@ -302,19 +307,43 @@ Each rule can optionally control whether the tenant scope is applied:
     - app-wld01-prod-application
   services:
     - HTTPS
-  scope_enabled: true  # Optional: Set to false to disable tenant scope (defaults to true)
+  applied_to:  # Optional: List of groups to apply the rule to
+    - app-wld01-prod-web
+    - app-wld01-prod-application
 ```
 
-When `scope_enabled` is set to:
-- `true` (default): The rule is applied only to resources with the tenant tag
-- `false`: The scope is not applied, which means the rule applies globally regardless of tenant tag
+When `applied_to` is:
+- **Empty or not specified**: The rule applies with DFW (Distributed Firewall) scope, meaning it applies globally
+- **List of groups**: The rule is applied only to the specified groups, providing more targeted control
 
-The `scope_enabled` parameter can be applied to:
+The `applied_to` parameter can be applied to:
 - Emergency policy rules
 - Environment policy rules (both allowed and blocked communications)
 - Application policy rules
 
-Use this feature when you need to create rules that should apply to resources without the tenant tag or that require global application.
+Examples of different `applied_to` configurations:
+
+```yaml
+# Single group
+applied_to:
+  - app-wld01-prod-web
+
+# Multiple groups
+applied_to:
+  - app-wld01-prod-web
+  - app-wld01-prod-application
+  - app-wld01-prod-database
+
+# Tenant-wide scope
+applied_to:
+  - ten-wld01
+
+# Empty (DFW scope) - rule applies globally
+applied_to: []
+# OR simply omit the applied_to field entirely
+```
+
+Use this feature when you need to create rules that should apply to specific groups or require more granular control over rule application.
 
 ## Finding and Using NSX Predefined Resources
 

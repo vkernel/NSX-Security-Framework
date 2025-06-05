@@ -116,12 +116,16 @@ tenant_id:
       - name: Allow prod to test 
         source: env-{tenant}-prod
         destination: env-{tenant}-test
-        scope_enabled: true 
+        applied_to: 
+          - env-{tenant}-prod
+          - env-{tenant}-test
     blocked_communications:
       - name: Block test from prod
         source: env-{tenant}-test
         destination: env-{tenant}-prod
-        scope_enabled: true 
+        applied_to:
+          - env-{tenant}-test
+          - env-{tenant}-prod
   application_policy:
     - name: Rule name
       source: 
@@ -136,7 +140,9 @@ tenant_id:
         - SSL
       custom_context_profiles:
         - cp-{tenant}-custom-profile-name
-      scope_enabled: true
+      applied_to:
+        - app-{tenant}-{env}-{component1}
+        - app-{tenant}-{env}-{component2}
 ```
 
 ## Tagging Strategy
@@ -388,7 +394,9 @@ To use a predefined context profile in a security rule:
   context_profiles:
     - HTTPS
     - SSL
-  scope_enabled: true
+  applied_to:
+    - app-source-group
+    - app-destination-group
 ```
 
 ### Custom Context Profiles
@@ -412,6 +420,9 @@ custom_context_profiles:
   destination: app-destination-group
   custom_context_profiles:
     - cp-wld01-custom-context-profile-name
+  applied_to:
+    - app-source-group
+    - app-destination-group
 ```
 
 ### Emergency Policy
@@ -437,12 +448,16 @@ tenant_id:
       - name: Allow prod to test 
         source: env-{tenant}-prod
         destination: env-{tenant}-test
-        scope_enabled: true 
+        applied_to: 
+          - env-{tenant}-prod
+          - env-{tenant}-test
     blocked_communications:
       - name: Block test from prod
         source: env-{tenant}-test
         destination: env-{tenant}-prod
-        scope_enabled: true 
+        applied_to:
+          - env-{tenant}-test
+          - env-{tenant}-prod
 ```
 
 ### Application Policy
@@ -465,7 +480,9 @@ tenant_id:
         - SSL
       custom_context_profiles:
         - cp-{tenant}-custom-profile-name
-      scope_enabled: true
+      applied_to:
+        - app-{tenant}-{env}-{component1}
+        - app-{tenant}-{env}-{component2}
 ```
 
 ## Module Structure and Outputs
