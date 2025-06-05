@@ -117,10 +117,11 @@ module "policies" {
 
   for_each = local.tenant_configs
 
-  tenant_id        = each.key
-  authorized_flows = each.value.authorized_flows
-  inventory        = each.value.inventory
-  project_id       = each.value.project_name
+  tenant_id            = each.key
+  authorized_flows     = each.value.authorized_flows
+  authorized_flows_file = each.value.authorized_flows_file
+  inventory            = each.value.inventory
+  project_id           = each.value.project_name
 
   groups = {
     tenant_group_id         = module.groups[each.key].tenant_group_id

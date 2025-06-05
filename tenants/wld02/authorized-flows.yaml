@@ -31,7 +31,7 @@ wld02:
           -  env-wld02-acc
           -  env-wld02-dev
   application_policy:
-    pol-wld01-consume-provider:
+    pol-wld02-consume-provider:
       - name: Allow remote access to tenant
         source: 
           - cons-wld02-dev-3holapp

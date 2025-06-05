@@ -11,25 +11,22 @@ output "environment_policy_id" {
 output "application_policy_ids" {
   description = "Map of application security policy IDs by application key"
   value = {
-    for idx, policy in nsxt_policy_security_policy.application_policy :
-    local.application_policies_ordered[idx].policy_key => policy.id
+    for key, policy in nsxt_policy_security_policy.application_policy :
+    key => policy.id
   }
 }
 
 output "application_policy_ids_ordered" {
   description = "List of application security policy IDs in order"
   value = [
-    for policy in nsxt_policy_security_policy.application_policy :
-    policy.id
+    for policy_key in local.application_policy_keys_ordered :
+    nsxt_policy_security_policy.application_policy[policy_key].id
   ]
 }
 
 output "application_policy_keys_ordered" {
   description = "List of application policy keys in order from YAML"
-  value = [
-    for policy_config in local.application_policies_ordered :
-    policy_config.policy_key
-  ]
+  value = local.application_policy_keys_ordered
 }
 
 output "policy_count" {
@@ -47,8 +44,8 @@ output "rule_count" {
     emergency   = length(local.emergency_rules)
     environment = length(local.environment_rules)
     application = {
-      for policy_config in local.application_policies_ordered :
-      policy_config.policy_key => length(policy_config.rules)
+      for policy_key in local.application_policy_keys_ordered :
+      policy_key => length(local.application_policies[policy_key].rules)
     }
   }
 } 

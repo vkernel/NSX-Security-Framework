@@ -14,10 +14,49 @@ locals {
   environment_policy      = try(local.tenant_data.environment_policy, {})
   application_policy_map  = try(local.tenant_data.application_policy, {})
   
-  # Preserve the order of application policies from YAML by creating an ordered list
-  application_policy_keys_ordered = [
-    for key in keys(try(local.tenant_data.application_policy, {})) : key
-  ]
+  # Read the YAML file as text to preserve original order
+  authorized_flows_file_path = coalesce(var.authorized_flows_file, "./tenants/${local.tenant_key}/authorized-flows.yaml")
+  authorized_flows_text = file(local.authorized_flows_file_path)
+  
+  # Extract application policy keys in their original YAML order using regex
+  # This matches lines that start with exactly 4 spaces followed by policy keys (pol-xxx:)
+  application_policy_keys_ordered = flatten([
+    for match in regexall("(?m)^    (pol-[^:]+):", local.authorized_flows_text) : match
+  ])
+
+  # Create a map that includes the original order index for sequence numbering
+  application_policy_order_map = {
+    for idx, key in local.application_policy_keys_ordered : key => idx
+  }
+
+  # Create the application policies structure with order indices
+  application_policies = {
+    for policy_key in local.application_policy_keys_ordered : policy_key => {
+      order_index = local.application_policy_order_map[policy_key]
+      rules = [
+        for rule in local.application_policy_map[policy_key] : {
+          name         = try(rule.name, "app-rule-${index(local.application_policy_map[policy_key], rule) + 1}")
+          sources      = rule.source
+          destinations = rule.destination
+          # Add predefined services if they exist
+          service_keys = try(rule.services, [])
+          # Add custom services if they exist (new format)
+          custom_services = try(rule.custom_services, [])
+          # Process both predefined and custom context profiles
+          predefined_profiles = try(rule.context_profiles, [])
+          # Get list of custom context profile references (new format)
+          custom_profiles = try(rule.custom_context_profiles, [])
+          # Check if we have any custom profiles
+          has_custom_profiles = length(try(rule.custom_context_profiles, [])) > 0
+          # Check if we have both predefined and custom profiles
+          has_multiple_profiles = length(try(rule.context_profiles, [])) > 0 || length(try(rule.custom_context_profiles, [])) > 0
+          action               = try(rule.action, "ALLOW")
+          applied_to           = try(rule.applied_to, [])
+          policy_key           = policy_key
+        }
+      ]
+    }
+  }
 
   # Emergency policy should not be used in project context
   emergency_policy = var.project_id == null ? try(local.tenant_data.emergency_policy, []) : []
@@ -45,62 +84,6 @@ locals {
 
   # Combine environment rules
   environment_rules = concat(local.allowed_env_rules, local.blocked_env_rules)
-
-  # Process application policy rules per application firewall - preserve order using list
-  application_policies_ordered = [
-    for policy_key in local.application_policy_keys_ordered : {
-      policy_key = policy_key
-      rules = [
-        for rule in local.application_policy_map[policy_key] : {
-          name         = try(rule.name, "app-rule-${index(local.application_policy_map[policy_key], rule) + 1}")
-          sources      = rule.source
-          destinations = rule.destination
-          # Add predefined services if they exist
-          service_keys = try(rule.services, [])
-          # Add custom services if they exist (new format)
-          custom_services = try(rule.custom_services, [])
-          # Process both predefined and custom context profiles
-          predefined_profiles = try(rule.context_profiles, [])
-          # Get list of custom context profile references (new format)
-          custom_profiles = try(rule.custom_context_profiles, [])
-          # Check if we have any custom profiles
-          has_custom_profiles = length(try(rule.custom_context_profiles, [])) > 0
-          # Check if we have both predefined and custom profiles
-          has_multiple_profiles = length(try(rule.context_profiles, [])) > 0 || length(try(rule.custom_context_profiles, [])) > 0
-          action               = try(rule.action, "ALLOW")
-          applied_to           = try(rule.applied_to, [])
-          policy_key           = policy_key
-        }
-      ]
-    }
-  ]
-
-  # Also keep the old format for compatibility with existing code
-  application_policies = {
-    for policy_key, rules in local.application_policy_map :
-    policy_key => [
-      for rule in rules : {
-        name         = try(rule.name, "app-rule-${index(rules, rule) + 1}")
-        sources      = rule.source
-        destinations = rule.destination
-        # Add predefined services if they exist
-        service_keys = try(rule.services, [])
-        # Add custom services if they exist (new format)
-        custom_services = try(rule.custom_services, [])
-        # Process both predefined and custom context profiles
-        predefined_profiles = try(rule.context_profiles, [])
-        # Get list of custom context profile references (new format)
-        custom_profiles = try(rule.custom_context_profiles, [])
-        # Check if we have any custom profiles
-        has_custom_profiles = length(try(rule.custom_context_profiles, [])) > 0
-        # Check if we have both predefined and custom profiles
-        has_multiple_profiles = length(try(rule.context_profiles, [])) > 0 || length(try(rule.custom_context_profiles, [])) > 0
-        action               = try(rule.action, "ALLOW")
-        applied_to           = try(rule.applied_to, [])
-        policy_key           = policy_key
-      }
-    ]
-  }
 
   # Process emergency policy rules
   emergency_rules = [
@@ -281,14 +264,14 @@ resource "nsxt_policy_security_policy" "environment_policy" {
 
 # Create application security policy
 resource "nsxt_policy_security_policy" "application_policy" {
-  count = length(local.application_policies_ordered)
+  for_each = local.application_policies
 
-  display_name    = local.application_policies_ordered[count.index].policy_key
-  description     = "Application security policy for tenant ${local.tenant_key} - ${local.application_policies_ordered[count.index].policy_key}"
+  display_name    = each.key
+  description     = "Application security policy for tenant ${local.tenant_key} - ${each.key}"
   category        = "Application"
   locked          = false
   stateful        = true
-  sequence_number = 3 + count.index # Incremental sequence starting from 3, ensuring proper ordering
+  sequence_number = 3 + each.value.order_index # Use YAML order index for proper sequencing
 
   dynamic "context" {
     for_each = var.project_id != null ? [1] : []
@@ -298,7 +281,7 @@ resource "nsxt_policy_security_policy" "application_policy" {
   }
 
   dynamic "rule" {
-    for_each = local.application_policies_ordered[count.index].rules
+    for_each = each.value.rules
     content {
       display_name = rule.value.name
       # Convert applied_to groups to group IDs, empty list if no applied_to specified (DFW scope)
