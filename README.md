@@ -7,19 +7,35 @@ This Terraform project implements a robust security framework for VMware NSX env
 - Multi-tenancy with separate configuration per tenant
 - NSX Project support for tenant isolation
 - Tag-based microsegmentation aligned with NSX best practices
+- **Policy Order Preservation**: Application policies are created in the exact order specified in YAML files
+- **Consumer/Provider Groups**: Support for consumer and provider relationship modeling
 - Emergency access policies for critical situations
 - Environment isolation with controlled cross-environment communication
 - Application-centric security policies with granular access controls
 - Support for external services and communication
 - Custom context profiles and services defined in inventory
+- **Stable Policy Identity**: Policy modifications result in updates rather than replacements
 
 ## Architecture
 
 The security framework follows the concept of hierarchical security with policies implemented at different levels:
 
-1. **Emergency Policies**: Highest priority policies for critical access
-2. **Environment Policies**: Control communication between environments (e.g., Production, Test)
-3. **Application Policies**: Define allowed communications between application tiers and components
+1. **Emergency Policies**: Highest priority policies for critical access (sequence: 1)
+2. **Environment Policies**: Control communication between environments (sequence: 2)
+3. **Application Policies**: Define allowed communications between application tiers and components (sequence: 3+)
+
+### Policy Sequence Numbering
+
+The framework implements intelligent sequence numbering to ensure policies are processed by NSX in the intended order:
+
+- **Emergency Policy**: Sequence number 1 (highest priority)
+- **Environment Policy**: Sequence number 2 
+- **Application Policies**: Sequence numbers 3+ based on YAML order
+  - First application policy in YAML: sequence 3
+  - Second application policy in YAML: sequence 4
+  - And so on...
+
+This ensures that policies are processed by NSX in the exact order you define them in your YAML configuration.
 
 ## NSX Project Support
 
@@ -45,6 +61,13 @@ tenant_id:
   external:
     ext-{tenant}-{service}:
       - ip-address-1
+  consumer:  # Consumer groups - who consumes services
+    cons-{tenant}-{environment}-{component}:
+      - ext-{tenant}-jumphosts  # External consumers
+      - app-{tenant}-{env}-{component}  # Internal consumers
+  provider:  # Provider groups - who provides services
+    prov-{tenant}-{environment}-{component}:
+      - app-{tenant}-{environment}-{component}  # Internal providers
   emergency:
     {tenant}-emergency:
       - vm-name-1
@@ -83,6 +106,13 @@ tenant_id:
   external:
     ext-{tenant}-{service}:
       - ip-address-1
+  consumer:  # Consumer groups - who consumes services
+    cons-{tenant}-{environment}-{component}:
+      - ext-{tenant}-jumphosts  # External consumers
+      - app-{tenant}-{env}-{component}  # Internal consumers
+  provider:  # Provider groups - who provides services
+    prov-{tenant}-{environment}-{component}:
+      - app-{tenant}-{environment}-{component}  # Internal providers
   emergency:
     {tenant}-emergency:
       - vm-name-1
@@ -103,7 +133,7 @@ tenant_id:
 
 ### 2. Authorized Flows Configuration (authorized-flows.yaml)
 
-Defines the allowed and blocked communication patterns between resources, using references to custom services and context profiles.
+Defines the allowed and blocked communication patterns between resources. **Important**: Application policies are created in the exact order they appear in this file.
 
 ```yaml
 tenant_id:
@@ -127,23 +157,56 @@ tenant_id:
           - env-{tenant}-test
           - env-{tenant}-prod
   application_policy:
-    - name: Rule name
-      source: 
-        - app-{tenant}-{env}-{component1}
-      destination: 
-        - app-{tenant}-{env}-{component2}
-      services:
-        - HTTPS
-      custom_services:
-        - svc-{tenant}-custom-service-name
-      context_profiles:
-        - SSL
-      custom_context_profiles:
-        - cp-{tenant}-custom-profile-name
-      applied_to:
-        - app-{tenant}-{env}-{component1}
-        - app-{tenant}-{env}-{component2}
+    # Named application firewalls - ORDER MATTERS!
+    # These will be created as separate NSX policies in this exact order
+    pol-{tenant}-consume-provider:  # First policy (sequence: 3)
+      - name: Consumer to provider access
+        source: 
+          - cons-{tenant}-{component}
+        destination: 
+          - prov-{tenant}-{component}
+        services:
+          - HTTPS
+        applied_to:
+          - cons-{tenant}-{component}
+          - prov-{tenant}-{component}
+    pol-{tenant}-app-communication:  # Second policy (sequence: 4)
+      - name: Rule name
+        source: 
+          - app-{tenant}-{env}-{component1}
+        destination: 
+          - app-{tenant}-{env}-{component2}
+        services:
+          - HTTPS
+        custom_services:
+          - svc-{tenant}-custom-service-name
+        context_profiles:
+          - SSL
+        custom_context_profiles:
+          - cp-{tenant}-custom-profile-name
+        applied_to:
+          - app-{tenant}-{env}-{component1}
+          - app-{tenant}-{env}-{component2}
 ```
+
+## Consumer/Provider Model
+
+The framework supports a consumer/provider relationship model that simplifies defining access patterns:
+
+### Consumer Groups
+- **Purpose**: Represent entities that consume services
+- **Examples**: External jump hosts, client applications, users
+- **Naming**: `cons-{tenant}-{descriptive-name}`
+
+### Provider Groups  
+- **Purpose**: Represent entities that provide services
+- **Examples**: Web servers, databases, APIs
+- **Naming**: `prov-{tenant}-{descriptive-name}`
+
+### Benefits
+- **Clear Intent**: Makes it obvious who consumes and who provides services
+- **Simplified Rules**: Reduces complexity in policy definitions
+- **Reusable Groups**: Same consumer/provider can be used across multiple policies
 
 ## Tagging Strategy
 
@@ -203,6 +266,8 @@ Based on the tagging strategy, the following security groups are created:
 - Application groups (all resources in an application)
 - Sub-application groups (all resources in a component)
 - External service groups (IP-based groups for external services)
+- **Consumer groups** (entities that consume services)
+- **Provider groups** (entities that provide services)
 - Emergency groups (VMs that need emergency access)
 
 ### Groups and Tags Relationship Diagram
@@ -309,7 +374,39 @@ The framework is organized into Terraform modules:
 - **groups**: Creates NSX security groups based on tags and IP addresses
 - **services**: Defines NSX services for protocol and port combinations
 - **context_profiles**: Creates and manages context profiles for deeper application inspection
-- **policies**: Creates security policies and firewall rules
+- **policies**: Creates security policies and firewall rules with order preservation
+
+### Advanced Features
+
+#### YAML Order Preservation
+The framework implements sophisticated YAML order preservation for application policies:
+
+```hcl
+# Extracts policy keys in original YAML order using regex
+application_policy_keys_ordered = flatten([
+  for match in regexall("(?m)^    (pol-[^:]+):", local.authorized_flows_text) : match
+])
+
+# Maps each policy to its original order index
+application_policy_order_map = {
+  for idx, key in local.application_policy_keys_ordered : key => idx
+}
+```
+
+This ensures that policy sequence numbers reflect the exact order in your YAML files.
+
+#### File Path Configuration
+You can customize the paths to your tenant configuration files:
+
+```hcl
+# In terraform.tfvars or variables
+inventory_file        = "./custom/path/inventory.yaml"
+authorized_flows_file = "./custom/path/authorized-flows.yaml"
+
+# Or use default paths
+# tenants/{tenant_id}/inventory.yaml
+# tenants/{tenant_id}/authorized-flows.yaml
+```
 
 ## Usage
 
@@ -462,28 +559,34 @@ tenant_id:
 
 ### Application Policy
 
-The application policy contains rules that define allowed communications between application tiers and components.
+The application policy defines allowed traffic between specific application components. Application policies use **named application firewalls** where each key represents a separate NSX security policy.
+
+**Critical Feature: Order Preservation**
+
+The framework preserves the exact order of application policies as they appear in the YAML file. This is achieved through:
+
+1. **Direct YAML Parsing**: Reads the YAML file as text and extracts policy keys using regex
+2. **Sequence Number Assignment**: Assigns sequence numbers based on YAML order (starting from 3)
+3. **Stable Identity**: Uses `for_each` instead of `count` to prevent policy replacements
 
 ```yaml
-tenant_id:
-  application_policy:
-    - name: Rule name
-      source: 
-        - app-{tenant}-{env}-{component1}
-      destination: 
-        - app-{tenant}-{env}-{component2}
-      services:
-        - HTTPS
-      custom_services:
-        - svc-{tenant}-custom-service-name
-      context_profiles:
-        - SSL
-      custom_context_profiles:
-        - cp-{tenant}-custom-profile-name
-      applied_to:
-        - app-{tenant}-{env}-{component1}
-        - app-{tenant}-{env}-{component2}
+application_policy:
+  pol-wld01-consume-provider:    # First - gets sequence number 3
+    - name: Consumer access rules
+      # ... rules
+  pol-wld01-prod-3holapp-app:    # Second - gets sequence number 4  
+    - name: 3-tier app rules
+      # ... rules
+  pol-wld01-prod-app:            # Third - gets sequence number 5
+    - name: Production app rules  
+      # ... rules
 ```
+
+**Key Benefits:**
+- ✅ **No Policy Replacements**: Modifications are updates, not replacements
+- ✅ **Preserves YAML Order**: NSX processes policies in intended sequence
+- ✅ **Stable Identity**: Each policy maintains consistent identity
+- ✅ **Predictable Processing**: Guaranteed processing order by NSX
 
 ## Module Structure and Outputs
 
@@ -495,7 +598,7 @@ The NSX Security Framework is organized into modular components, each responsibl
 2. **Groups Module** - Creates and manages NSX groups for applications, environments, and services
 3. **Services Module** - Handles NSX service definitions used in security policies
 4. **Context Profiles Module** - Manages application context profiles for deeper traffic inspection
-5. **Policies Module** - Creates and configures security policies and rules
+5. **Policies Module** - Creates and configures security policies and rules with order preservation
 
 ### Available Outputs
 
@@ -505,9 +608,18 @@ Each module exposes specific outputs that can be used for reference or in other 
 
 - `tenant_tags` - Tags created for each tenant
 - `tenant_vms` - List of VMs in each tenant
+- `vm_tag_details` - Detailed mapping of tag assignments for each VM
+- `tag_hierarchy` - Hierarchical structure showing tag relationships
+- `emergency_vm_assignments` - Emergency group to VM mappings
 - `tenant_group_ids` - ID of each tenant group
+- `tenant_group_details` - Detailed tenant group configuration
 - `environment_groups` - Environment groups for each tenant
+- `environment_groups_details` - Detailed environment group configuration
 - `application_groups` - Application groups for each tenant
+- `application_groups_details` - Detailed application group configuration
+- `sub_application_groups_details` - Sub-application group details
+- `external_service_groups_details` - External service group details with IP addresses
+- `emergency_groups_details` - Emergency group configuration details
 - `services` - Services created for each tenant
 - `context_profiles` - Context profiles created for each tenant
 - `policy_ids` - IDs of security policies created for each tenant
@@ -518,14 +630,25 @@ Each module exposes specific outputs that can be used for reference or in other 
 - **Tags Module**
   - `tenant_tag` - The tag used for the tenant
   - `tenant_vms` - List of VMs in the tenant
+  - `vm_tag_assignments` - Detailed VM tag assignments
+  - `tag_hierarchy_summary` - Summary of tag hierarchy
+  - `emergency_vm_assignments` - Emergency group VM assignments
 
 - **Groups Module**
   - `tenant_group_id` - ID of the tenant group
+  - `tenant_group_details` - Detailed tenant group configuration
   - `environment_groups` - IDs of environment groups
+  - `environment_groups_details` - Detailed environment group configuration
   - `application_groups` - IDs of application groups
+  - `application_groups_details` - Detailed application group configuration
   - `sub_application_groups` - IDs of sub-application groups
+  - `sub_application_groups_details` - Detailed sub-application group configuration
   - `external_service_groups` - IDs of external service groups
+  - `external_service_groups_details` - External service group details with IP addresses
   - `emergency_groups` - IDs of emergency groups
+  - `emergency_groups_details` - Emergency group configuration details
+  - `consumer_groups` - IDs of consumer groups
+  - `provider_groups` - IDs of provider groups
 
 - **Services Module**
   - `services` - Map of service names to service details
@@ -539,8 +662,10 @@ Each module exposes specific outputs that can be used for reference or in other 
 - **Policies Module**
   - `emergency_policy_id` - ID of the emergency security policy
   - `environment_policy_id` - ID of the environment security policy
-  - `application_policy_id` - ID of the application security policy
+  - `application_policy_ids` - Map of application policy IDs by key
+  - `application_policy_ids_ordered` - List of application policy IDs in YAML order
+  - `application_policy_keys_ordered` - List of application policy keys in YAML order
   - `policy_count` - Count of policies created for each tenant
   - `rule_count` - Count of rules created for each policy type
 
-These outputs can be useful for debugging, reporting, or integrating with other systems.
+These outputs can be useful for debugging, reporting, or integrating with other systems. The order-related outputs are particularly valuable for validating that policies are created in the intended sequence.

@@ -26,6 +26,8 @@ For each tenant you want to deploy:
 
 2. Make sure the VM names in your YAML files match the display names of your actual VMs in NSX.
 
+**Important**: Application policies in `authorized-flows.yaml` are created in the exact order they appear in the file. Plan your policy order carefully as it affects NSX processing sequence.
+
 ### 3. Configure NSX Connection Parameters
 
 Edit the `terraform.tfvars` file with your NSX Manager details and tenants:
@@ -38,6 +40,24 @@ nsx_password     = "your-password"
 
 # Tenants to deploy simultaneously
 tenants = ["wld01", "wld02"]
+
+# Optional: Custom file paths (defaults shown)
+# inventory_file        = "./tenants/{tenant_id}/inventory.yaml"
+# authorized_flows_file = "./tenants/{tenant_id}/authorized-flows.yaml"
+```
+
+### Optional: Custom File Paths
+
+If your tenant configuration files are located in non-standard paths, you can specify custom paths:
+
+```hcl
+# Custom paths for all tenants
+inventory_file        = "./config/inventory.yaml"
+authorized_flows_file = "./config/flows.yaml"
+
+# Or use environment-specific paths
+inventory_file        = "./environments/${terraform.workspace}/inventory.yaml"
+authorized_flows_file = "./environments/${terraform.workspace}/flows.yaml"
 ```
 
 ### 4. Initialize Terraform
@@ -122,6 +142,8 @@ If you encounter errors related to projects, check the following:
 
 The NSX Security Framework is designed to deploy configurations for multiple tenants simultaneously. All tenants specified in the `tenants` list in terraform.tfvars will be configured when you run terraform apply.
 
+**Policy Order Preservation**: Each tenant's application policies are created in the order they appear in their respective `authorized-flows.yaml` files. This ensures consistent policy processing across all tenants.
+
 To add a new tenant:
 1. Create a directory for the tenant under `tenants/<tenant_id>/`
 2. Add the necessary inventory.yaml and authorized-flows.yaml files
@@ -137,6 +159,7 @@ All tenants specified in the `tenants` list are managed together and configurati
 1. Multiple tenant configurations to exist without conflicts
 2. Adding new tenants without affecting existing ones
 3. Managing all tenant configurations through a single terraform apply operation
+4. **Maintaining policy order**: Each tenant's policies maintain their intended order independently
 
 There is no need to use workspaces or separate state files for different tenants, as the framework now supports managing multiple tenants simultaneously in a single Terraform state.
 
@@ -159,6 +182,13 @@ tenant_id:  # e.g., wld01
   external:  # External services defined by IP addresses
     ext-{tenant}-{service}:  # External service (e.g., ext-wld01-dns)
       - 192.168.12.10  # IP addresses for this service
+  consumer:  # NEW: Consumer groups - entities that consume services
+    cons-{tenant}-{descriptive-name}:  # Consumer group (e.g., cons-wld01-web-clients)
+      - ext-{tenant}-jumphosts  # External consumers
+      - app-{tenant}-{env}-{component}  # Internal consumers
+  provider:  # NEW: Provider groups - entities that provide services  
+    prov-{tenant}-{descriptive-name}:  # Provider group (e.g., prov-wld01-web-servers)
+      - app-{tenant}-{environment}-{component}  # Internal providers
   emergency:  # Emergency access groups
     emg-{tenant}:  # Emergency group (e.g., emg-wld01)
       - vm-name-4  # VMs that need emergency access
@@ -194,13 +224,22 @@ authorized-flows.yaml
 │   │   └── blocked_communications:
 │   │       └── [list of blocked env rules]
 │   └── application_policy:
-│       ├── app-{tenant}-app01:
+│       ├── pol-{tenant}-{name1}:  # FIRST - Sequence 3
 │       │   └── [list of rules for application firewall 1]
-│       ├── app-{tenant}-app02:
+│       ├── pol-{tenant}-{name2}:  # SECOND - Sequence 4
 │       │   └── [list of rules for application firewall 2]
-│       └── app-{tenant}-appN:
+│       └── pol-{tenant}-{nameN}:  # LAST - Sequence N+2
 │           └── [list of rules for application firewall N]
 ```
+
+**Critical: Policy Order Matters!**
+
+The order of application policies in the YAML file determines their NSX sequence numbers:
+- First policy in YAML → NSX sequence number 3
+- Second policy in YAML → NSX sequence number 4  
+- And so on...
+
+This order is preserved through sophisticated YAML parsing that extracts policy keys in their original order.
 
 ### Emergency Policy
 
@@ -241,32 +280,57 @@ The application policy is now structured as a map where each key represents an a
 
 ```yaml
 application_policy:
-  app-wld01-app01:  # First application firewall
-    - name: Allow jumphost to ten-wld01 on SSH, ICMPv4 and HTTPS
-      source: ext-wld01-jumphosts
+  # IMPORTANT: Order of these policies determines NSX sequence numbers!
+  pol-wld01-consume-provider:  # First application firewall - Sequence 3
+    - name: Allow remote access to 3holapp web servers
+      source: 
+        - cons-wld01-prod-3holapp-web  # Consumer group
       destination: 
-        - ten-wld01
-      services:
-        - SSH
-        - ICMPv4
+        - prov-wld01-prod-3holapp-web  # Provider group
+      services:  
         - HTTPS
       action: ALLOW
       applied_to:
-        - ten-wld01
+        -  cons-wld01-prod-3holapp-web
+        -  prov-wld01-prod-3holapp-web
+    - name: Allow remote access to prod web servers
+      source: 
+        - cons-wld01-prod-web
+      destination: 
+        - prov-wld01-prod-web
+      services:  
+        - HTTPS
+      action: ALLOW
+      applied_to:
+        -  cons-wld01-prod-web
+        -  prov-wld01-prod-web
+  
+  pol-wld01-prod-3holapp-app:  # Second application firewall - Sequence 4
     - name: Allow web servers to application servers
       source: 
-        - app-wld01-prod-web
+        - app-wld01-prod-3holapp-web
       destination: 
-        - app-wld01-prod-application
+        - app-wld01-prod-3holapp-application
       custom_services:  
         - svc-wld01-custom-service-name1
       action: ALLOW
       applied_to:
-        - app-wld01-prod-web
-        - app-wld01-prod-application
-  
-  app-wld01-app02:  # Second application firewall
-    - name: Allow database access for app02
+        - app-wld01-prod-3holapp-web
+        - app-wld01-prod-3holapp-application
+    - name: Allow application servers to database servers
+      source: 
+        - app-wld01-prod-3holapp-application
+      destination: 
+        - app-wld01-prod-3holapp-database
+      services:
+        - MySQL
+      action: ALLOW
+      applied_to:
+        - app-wld01-prod-3holapp-application
+        - app-wld01-prod-3holapp-database
+
+  pol-wld01-prod-app:  # Third application firewall - Sequence 5
+    - name: Allow database access for production app
       source: 
         - app-wld01-prod-application
       destination: 
@@ -285,13 +349,222 @@ application_policy:
 2. **Independent Management**: Each application firewall can be modified independently without affecting others
 3. **Clearer Organization**: Rules are logically grouped by application or function
 4. **Granular Control**: Each application firewall creates its own NSX security policy with its own sequence number
+5. **Order Preservation**: Policies are created in exact YAML order for predictable NSX processing
 
 #### NSX Security Policy Creation
 
 When using multiple application firewalls, the framework creates:
 - One NSX security policy per application firewall key
-- Policy names follow the pattern: `app-{tenant}-{application-firewall-key}-policy`
-- Example: `app-wld01-app-wld01-app01-policy` and `app-wld01-app-wld01-app02-policy`
+- Policy names follow the pattern: `{application-firewall-key}`
+- Example: `pol-wld01-consume-provider` and `pol-wld01-prod-3holapp-app`
+- Sequence numbers based on YAML order: 3, 4, 5, etc.
+
+#### Consumer/Provider Model Usage
+
+The consumer/provider model simplifies policy definition:
+
+**Consumer Groups** (`cons-*`):
+- Represent entities that need to access services
+- Examples: Jump hosts, client applications, user groups
+- Can include both internal and external resources
+
+**Provider Groups** (`prov-*`):
+- Represent entities that provide services
+- Examples: Web servers, databases, APIs
+- Typically contain internal application components
+
+**Example Consumer/Provider Policy**:
+```yaml
+- name: Allow external access to web services
+  source: 
+    - cons-wld01-external-users  # Consumer: External users via jump hosts
+  destination: 
+    - prov-wld01-web-services    # Provider: Web servers
+  services:
+    - HTTPS
+  applied_to:
+    - cons-wld01-external-users
+    - prov-wld01-web-services
+```
+
+## Troubleshooting
+
+### Common Issues
+
+1. **Provider Not Found Error**:
+   - Make sure you've run `terraform init`
+   - Check that the provider block in `main.tf` is correctly specified
+
+2. **VM Tagging Failures**:
+   - Verify that VM display names exactly match those in your YAML files
+   - Check that your NSX service account has sufficient permissions
+
+3. **Security Policy Not Working**:
+   - Verify that groups are correctly created
+   - Check that services are defined with correct protocols and ports
+   - Ensure policies are correctly applied to the right scope
+
+4. **YAML Parsing Errors**:
+   - Ensure your YAML files are properly formatted with correct indentation
+   - Validate YAML syntax using an online YAML validator
+
+5. **Predefined Service Not Found**:
+   - Verify the exact spelling of the service name as shown in NSX UI
+   - Check if the service exists in your NSX version
+   
+6. **Context Profile Issues**:
+   - Ensure your App IDs and domain names are formatted correctly
+   - Verify that context profile names match exactly as shown in NSX UI
+   - Remember that when using multiple context profiles, services must be set to ANY
+
+7. **Policy Order Issues**:
+   - Verify that application policies appear in the correct order in your YAML file
+   - Use `terraform output application_policy_keys_ordered` to check the detected order
+   - Ensure proper YAML indentation (exactly 4 spaces for policy keys)
+
+8. **Consumer/Provider Group Issues**:
+   - Ensure consumer and provider groups are defined in inventory.yaml
+   - Verify that group references in policies match the defined group names
+   - Check that consumer/provider groups contain the expected resources
+
+## Validating Policy Order
+
+To verify that your policies are being created in the correct order:
+
+### 1. Check Policy Key Order
+```bash
+terraform output application_policy_keys_ordered
+```
+This shows the order in which policies were extracted from your YAML file.
+
+### 2. Check Policy IDs in Order
+```bash
+terraform output application_policy_ids_ordered
+```
+This shows the NSX policy IDs in the order they were created.
+
+### 3. Validate Policy Sequence Numbers
+```bash
+terraform output policy_ids
+```
+Look at the policy details in NSX Manager to verify sequence numbers match your intended order.
+
+### 4. Test Order Changes
+To test that policy order changes work correctly:
+1. Modify the order of application policies in your YAML file
+2. Run `terraform plan` to see the expected changes
+3. Run `terraform apply` to update the sequence numbers
+
+**Note**: The framework uses `for_each` instead of `count`, so policy order changes result in sequence number updates rather than policy replacements.
+
+## Working with Outputs
+
+After deployment, Terraform provides various outputs that can help you understand and validate the created resources.
+
+### Viewing Outputs
+
+To view all outputs from a Terraform deployment:
+
+```bash
+terraform output
+```
+
+To view a specific output:
+
+```bash
+terraform output tenant_tags
+```
+
+### Useful Outputs for Inspection
+
+1. **Rule Counts**: View how many rules were created for each policy type
+   ```bash
+   terraform output rule_counts
+   ```
+
+2. **Policy IDs**: Get the policy IDs for integration with other systems
+   ```bash
+   terraform output policy_ids
+   ```
+
+3. **Application Policy Order**: Validate that policies are in the correct order
+   ```bash
+   terraform output application_policy_keys_ordered
+   terraform output application_policy_ids_ordered
+   ```
+
+4. **Groups**: View the created NSX groups and their paths
+   ```bash
+   terraform output application_groups
+   terraform output consumer_groups
+   terraform output provider_groups
+   ```
+
+5. **Context Profiles**: View the custom and predefined context profiles
+   ```bash
+   terraform output context_profiles
+   ```
+
+6. **Services**: View all services (predefined and custom)
+   ```bash
+   terraform output services
+   ```
+
+7. **VM Tag Details**: View detailed tag assignments for each VM
+   ```bash
+   terraform output vm_tag_details
+   ```
+
+8. **Tag Hierarchy**: View the hierarchical structure of tags
+   ```bash
+   terraform output tag_hierarchy
+   ```
+
+### Using Outputs for Integration
+
+Outputs can be used for integration with other systems or for documentation:
+
+1. **Export to JSON**: 
+   ```bash
+   terraform output -json > nsx_security_resources.json
+   ```
+
+2. **Usage in Scripts**:
+   ```bash
+   POLICY_ID=$(terraform output -raw 'policy_ids.wld01.application_policies.pol-wld01-consume-provider')
+   # Use the policy ID in scripts or other tools
+   ```
+
+3. **Validate Policy Order**:
+   ```bash
+   # Get the order of policies as they appear in YAML
+   terraform output -json application_policy_keys_ordered
+
+   # Get the NSX policy IDs in the same order
+   terraform output -json application_policy_ids_ordered
+   ```
+
+### Advanced Output Usage
+
+For detailed analysis and reporting:
+
+```bash
+# Get complete tenant configuration summary
+terraform output -json | jq '.tenant_group_details'
+
+# Get application policy sequence information
+terraform output -json | jq '.policy_ids[] | .application_policies'
+
+# Get consumer/provider group mappings
+terraform output -json | jq '.tenant_group_details[] | {consumer_groups, provider_groups}'
+
+# Get rule count summary across all tenants
+terraform output -json rule_counts
+```
+
+### Note about Empty Emergency Groups
+
+Emergency policies can reference emergency groups even when they have no VMs assigned. This allows you to add VMs to these groups later without requiring changes to the policies or infrastructure.
 
 You can specify traffic flows using several methods:
 
@@ -392,35 +665,7 @@ To modify an existing deployment:
    terraform apply
    ```
 
-## Troubleshooting
-
-### Common Issues
-
-1. **Provider Not Found Error**:
-   - Make sure you've run `terraform init`
-   - Check that the provider block in `main.tf` is correctly specified
-
-2. **VM Tagging Failures**:
-   - Verify that VM display names exactly match those in your YAML files
-   - Check that your NSX service account has sufficient permissions
-
-3. **Security Policy Not Working**:
-   - Verify that groups are correctly created
-   - Check that services are defined with correct protocols and ports
-   - Ensure policies are correctly applied to the right scope
-
-4. **YAML Parsing Errors**:
-   - Ensure your YAML files are properly formatted with correct indentation
-   - Validate YAML syntax using an online YAML validator
-
-5. **Predefined Service Not Found**:
-   - Verify the exact spelling of the service name as shown in NSX UI
-   - Check if the service exists in your NSX version
-   
-6. **Context Profile Issues**:
-   - Ensure your App IDs and domain names are formatted correctly
-   - Verify that context profile names match exactly as shown in NSX UI
-   - Remember that when using multiple context profiles, services must be set to ANY
+**Note**: Thanks to the order preservation features, modifying application policies will result in updates rather than replacements, maintaining stable policy identities.
 
 ## Resource Cleanup
 
@@ -440,6 +685,7 @@ The following diagram illustrates the overall deployment process:
 ┌─────────────────────┐
 │ Prepare YAML Files  │
 │ for Each Tenant     │
+│ (Order Matters!)    │
 └──────────┬──────────┘
            │
            ▼
@@ -463,6 +709,8 @@ The following diagram illustrates the overall deployment process:
 │                    Resources Created                          │
 ├──────────────┬──────────────┬───────────────┬────────────────┐
 │ VM Tags      │ NSX Groups   │ Services      │ Context Profiles│
+│ (Hierarchy)  │ (Inc. Cons/  │ (Predefined & │ (Predefined &  │
+│              │  Providers)  │  Custom)      │  Custom)       │
 └──────────────┴──────────────┴───────────────┴────────────────┘
            │
            ▼
@@ -470,69 +718,7 @@ The following diagram illustrates the overall deployment process:
 │         Security Policies Created       │
 ├──────────────┬──────────────┬───────────┤
 │ Emergency    │ Environment  │ Application│
-└──────────────┴──────────────┴───────────┘
-```
-
-## Working with Outputs
-
-After deployment, Terraform provides various outputs that can help you understand and validate the created resources.
-
-### Viewing Outputs
-
-To view all outputs from a Terraform deployment:
-
-```bash
-terraform output
-```
-
-To view a specific output:
-
-```bash
-terraform output tenant_tags
-```
-
-### Useful Outputs for Inspection
-
-1. **Rule Counts**: View how many rules were created for each policy type
-   ```bash
-   terraform output rule_counts
-   ```
-
-2. **Policy IDs**: Get the policy IDs for integration with other systems
-   ```bash
-   terraform output policy_ids
-   ```
-
-3. **Groups**: View the created NSX groups and their paths
-   ```bash
-   terraform output application_groups
-   ```
-
-4. **Context Profiles**: View the custom and predefined context profiles
-   ```bash
-   terraform output context_profiles
-   ```
-
-5. **Services**: View all services (predefined and custom)
-   ```bash
-   terraform output services
-   ```
-
-### Using Outputs for Integration
-
-Outputs can be used for integration with other systems or for documentation:
-
-1. **Export to JSON**: 
-   ```bash
-   terraform output -json > nsx_security_resources.json
-   ```
-
-2. **Usage in Scripts**:
-   ```bash
-   POLICY_ID=$(terraform output -raw 'policy_ids.wld01.application_policy')
-   # Use the policy ID in scripts or other tools
-   ```
-
-### Note about Empty Emergency Groups
-
-Emergency policies can reference emergency groups even when they have no VMs assigned. This allows you to add VMs to these groups later without requiring changes to the policies or infrastructure. 
+│ (Seq: 1)     │ (Seq: 2)     │ (Seq: 3+)  │
+│              │              │ (YAML Order│
+│              │              │ Preserved) │
+└──────────────┴──────────────┴───────────┘ 
