@@ -672,7 +672,7 @@ These outputs can be useful for debugging, reporting, or integrating with other 
 
 ## VM Name Exact Matching
 
-The framework now includes **VM name exact matching validation** to prevent issues with similar VM names. This addresses common problems where partial name matches can cause confusion.
+The framework requires **exact VM name matching** to prevent issues with similar VM names. This addresses common problems where partial name matches can cause confusion.
 
 ### The Problem
 When you have VMs with similar names like:
@@ -680,36 +680,77 @@ When you have VMs with similar names like:
 - `LMBB-AZT-PRTG04` (a different VM)  
 - `LMBB-AZT-PRTG06` (another different VM)
 
-The old behavior might match any of these VMs when you specify `LMBB-AZT-PRTG` in your YAML.
+The NSX Terraform provider may match multiple VMs when you specify `LMBB-AZT-PRTG` in your YAML, causing this error:
+```
+Error: Found 3 Virtual Machines with name prefix: LMBB-AZT-PRTG
+```
 
 ### The Solution
-The framework now validates that:
-1. **Exact Match Required**: VM names in your YAML must exactly match NSX VM display names
-2. **Clear Error Messages**: When there's a mismatch, you get a detailed error showing:
-   - What you specified in YAML
-   - What was actually found in NSX
-   - Guidance on how to fix it
+To resolve this issue:
 
-### Example Error Message
+1. **Identify the Exact VM Name**: Check NSX Manager → Inventory → Virtual Machines
+2. **Search for Similar Names**: Use the search feature to find all VMs with similar names
+3. **Choose the Correct VM**: Identify which VM is the one you actually want to configure
+4. **Update YAML with Exact Name**: Use the complete, exact display name in your YAML files
+
+### Example Fix
+
+**Problem**: Your YAML has `LMBB-AZT-PRTG` but NSX has these VMs:
+- `LMBB-AZT-PRTG04`
+- `LMBB-AZT-PRTG06` 
+- `LMBB-AZT-PRTG-BACKUP`
+
+**Solution**: Update your YAML to use the exact name:
+```yaml
+# Before (causes error)
+internal:
+  env-wld09-prod:
+    app-wld09-prod-monitoring:
+      - LMBB-AZT-PRTG  # This matches multiple VMs
+
+# After (works correctly)  
+internal:
+  env-wld09-prod:
+    app-wld09-prod-monitoring:
+      - LMBB-AZT-PRTG04  # Exact match
 ```
-VM name validation failed! The following VMs in your YAML do not exactly match NSX VM display names:
 
-  - YAML: 'LMBB-AZT-PRTG' -> NSX: 'LMBB-AZT-PRTG04'
+### Common Error Messages and Solutions
 
-This often happens when:
-1. VM names in YAML are partial matches (e.g., 'LMBB-AZT-PRTG' matches 'LMBB-AZT-PRTG04')
-2. VM names have different casing
-3. VM names have extra spaces or characters
-
-Please update your YAML files to use exact VM display names as they appear in NSX Manager.
-
-To find the exact VM names, check NSX Manager > Inventory > Virtual Machines.
+#### "Found X Virtual Machines with name prefix"
+```
+Error: Found 3 Virtual Machines with name prefix: LMBB-AZT-PRTG
 ```
 
-### How to Fix VM Name Issues
-1. **Check NSX Manager**: Go to Inventory → Virtual Machines
-2. **Copy Exact Names**: Use the exact display name as shown in NSX
-3. **Update YAML Files**: Replace the partial/incorrect names with exact names
-4. **Re-run Terraform**: The validation will pass once names match exactly
+**Cause**: Multiple VMs in NSX have names that start with your specified VM name.
 
-This validation ensures that your policies are applied to the correct VMs and prevents accidental misconfigurations.
+**Solution**:
+1. Open NSX Manager → Inventory → Virtual Machines
+2. Search for your VM name (e.g., "LMBB-AZT-PRTG")
+3. Review all matching VMs in the results
+4. Choose the correct VM and copy its exact display name
+5. Update your YAML file with the exact name
+
+#### Best Practices for VM Names
+
+1. **Use Complete Names**: Always use the full VM display name as it appears in NSX
+2. **Verify in NSX Manager**: Double-check VM names in the NSX Manager UI before adding to YAML
+3. **Be Case-Sensitive**: VM names are case-sensitive - match exactly
+4. **No Wildcards**: Don't use partial names or wildcards
+5. **Copy-Paste**: Copy VM names directly from NSX Manager to avoid typos
+
+### Troubleshooting Steps
+
+If you encounter VM name matching errors:
+
+1. **Check the Error Message**: Note which VM names are causing issues
+2. **Search NSX Manager**: 
+   - Go to Inventory → Virtual Machines
+   - Search for each problematic VM name
+   - Note all VMs that appear in search results
+3. **Identify the Correct VM**: Determine which VM you actually want to configure
+4. **Update YAML Files**: Replace the problematic names with exact matches
+5. **Test the Fix**: Run `terraform validate` to check for syntax errors
+6. **Deploy**: Run `terraform plan` to verify the changes before applying
+
+This validation ensures that your policies are applied to the correct VMs and prevents accidental misconfigurations caused by ambiguous VM names.

@@ -24,42 +24,19 @@ output "external_service_vms" {
 }
 
 output "vm_tag_assignments" {
-  description = "Detailed mapping of all tag assignments by VM"
   value = {
     for vm in local.all_vms_including_external : vm => {
-      instance_id  = try(data.nsxt_policy_vm.vms[vm].instance_id, null)
-      display_name = vm
-      tenant_tag = {
-        scope = "tenant"
-        tag   = local.tenant_tag
-      }
-      environment_tag = contains(local.all_vms, vm) ? {
-        scope = "environment"
-        tag   = local.vm_base_data[vm].env_key
-      } : null
-      application_tags = contains(local.all_vms, vm) ? [
-        for app_tag in local.app_tags_by_vm[vm] : {
-          scope = "application"
-          tag   = app_tag
-        }
-      ] : []
-      sub_application_tags = contains(local.all_vms, vm) ? [
-        for sub_app_tag in local.sub_app_tags_by_vm[vm] : {
-          scope = "sub-application"
-          tag   = sub_app_tag
-        }
-        if sub_app_tag != null
-      ] : []
-      emergency_tag = contains(local.all_vms, vm) && lookup(local.emergency_vm_tags, vm, null) != null ? {
-        scope = "emergency"
-        tag   = local.emergency_vm_tags[vm]
-      } : null
-      external_service_tag = lookup(local.external_service_vm_tags, vm, null) != null ? {
-        scope = "external-service"
-        tag   = local.external_service_vm_tags[vm]
-      } : null
+      vm_name      = vm
+      instance_id  = try(local.found_vms[vm], null)
+      tenant_tag   = local.tenant_tag
+      environment_tag = contains(local.all_vms, vm) ? local.vm_base_data[vm].env_key : null
+      application_tags = contains(local.all_vms, vm) ? local.app_tags_by_vm[vm] : []
+      sub_application_tags = contains(local.all_vms, vm) ? local.sub_app_tags_by_vm[vm] : []
+      emergency_tag = contains(local.all_vms, vm) ? lookup(local.emergency_vm_tags, vm, null) : null
+      external_service_tag = lookup(local.external_service_vm_tags, vm, null)
     }
   }
+  description = "List of VMs and their tag assignments"
 }
 
 output "tag_hierarchy_summary" {

@@ -757,3 +757,105 @@ The following diagram illustrates the overall deployment process:
 │              │              │ (YAML Order│
 │              │              │ Preserved) │
 └──────────────┴──────────────┴───────────┘ 
+```
+
+## VM Name Exact Matching Issues
+
+### Problem Description
+When VMs have similar names, the NSX Terraform provider may find multiple matches, causing deployment failures.
+
+**Common Error**:
+```
+Error: Found 3 Virtual Machines with name prefix: LMBB-AZT-PRTG
+
+  with module.tags.data.nsxt_policy_vm.vms["LMBB-AZT-PRTG"],
+  on modules/tags/main.tf line 135, in data "nsxt_policy_vm" "vms":
+ 135: data "nsxt_policy_vm" "vms" {
+```
+
+### Root Cause
+This happens when:
+1. **Partial Names**: Your YAML contains `LMBB-AZT-PRTG` 
+2. **Multiple Matches**: NSX has VMs like `LMBB-AZT-PRTG04`, `LMBB-AZT-PRTG06`, etc.
+3. **Provider Behavior**: NSX provider does prefix matching and finds multiple VMs
+
+### Solution Steps
+
+#### Step 1: Identify Available VMs
+1. Open **NSX Manager** → **Inventory** → **Virtual Machines**
+2. Search for your VM name (e.g., "LMBB-AZT-PRTG")
+3. Note all VMs that appear in the search results
+
+Example results:
+- `LMBB-AZT-PRTG04` 
+- `LMBB-AZT-PRTG06`
+- `LMBB-AZT-PRTG-BACKUP`
+
+#### Step 2: Choose the Correct VM
+Determine which VM you actually want to configure based on:
+- VM purpose and function
+- Network location
+- Resource specifications
+- Naming conventions in your environment
+
+#### Step 3: Update YAML Files
+Replace the ambiguous name with the exact VM name:
+
+```yaml
+# ❌ Before (causes error)
+internal:
+  env-wld09-prod:
+    app-wld09-prod-monitoring:
+      - LMBB-AZT-PRTG  # Matches multiple VMs
+
+# ✅ After (works correctly)  
+internal:
+  env-wld09-prod:
+    app-wld09-prod-monitoring:
+      - LMBB-AZT-PRTG04  # Exact match
+```
+
+#### Step 4: Verify the Fix
+```bash
+# Validate configuration
+terraform validate
+
+# Check planned changes
+terraform plan -target=module.tags
+```
+
+### Prevention Best Practices
+
+1. **Always Use Full Names**: Use complete VM display names as they appear in NSX Manager
+2. **Copy from NSX Manager**: Copy-paste VM names directly to avoid typos
+3. **Verify Before Committing**: Double-check VM names in NSX Manager before updating YAML
+4. **Document VM Mappings**: Keep a reference of which VMs serve which purposes
+5. **Use Consistent Naming**: Work with your VM team to establish clear naming conventions
+
+### Troubleshooting Multiple Environments
+
+If you have similar issues across environments:
+
+```yaml
+# Example: Multiple environments with similar VM naming patterns
+internal:
+  env-wld09-dev:
+    app-wld09-dev-monitoring:
+      - LMBB-AZT-PRTG-DEV    # Development VM
+  
+  env-wld09-test:
+    app-wld09-test-monitoring:
+      - LMBB-AZT-PRTG-TEST   # Test VM
+  
+  env-wld09-prod:
+    app-wld09-prod-monitoring:
+      - LMBB-AZT-PRTG04      # Production VM (numbered)
+```
+
+### Quick Reference: Error to Solution
+
+| Error Pattern | Likely Cause | Solution |
+|---------------|--------------|----------|
+| `Found X Virtual Machines with name prefix: VM-NAME` | Multiple VMs start with the same prefix | Use the complete, exact VM name |
+| `No Virtual Machine found with display name: VM-NAME` | VM doesn't exist or name is incorrect | Verify VM exists in NSX Manager and check spelling |
+| `Error retrieving Virtual Machine ID` | VM exists but has access issues | Check NSX permissions and VM power state |

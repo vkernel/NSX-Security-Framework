@@ -1,3 +1,4 @@
+# NSX-T Provider
 terraform {
   required_providers {
     nsxt = {
@@ -54,13 +55,13 @@ locals {
       ]) : []
     ]
   ])
-
+  
   # Combine both types of VMs and deduplicate by VM name
   all_vm_data_combined = concat(local.direct_vms, local.sub_app_vms)
 
   # Set of all VM names (deduplicated)
   all_vms = toset([for vm_data in local.all_vm_data_combined : vm_data.vm])
-
+  
   # Map VM→all application keys it belongs to
   app_tags_by_vm = {
     for vm in local.all_vms :
@@ -69,7 +70,7 @@ locals {
       d.app_key if d.vm == vm
     ])
   }
-
+  
   # Map VM→all sub-application keys if any
   sub_app_tags_by_vm = {
     for vm in local.all_vms :
@@ -86,7 +87,7 @@ locals {
       [for d in local.all_vm_data_combined : d if d.vm == vm][0]
     )
   }
-
+  
   # Emergency stuff, if any
   emergency = try(local.tenant_data.emergency, {})
 
@@ -130,77 +131,60 @@ locals {
   ))
 }
 
-# Search for all VMs to validate exact matching
-data "nsxt_policy_vm" "vm_search" {
-  for_each = local.all_vms_including_external
-  
-  display_name = each.value
-}
+# Data source to get all VMs in NSX - this avoids prefix matching issues
+data "nsxt_policy_vms" "all_vms" {}
 
-# Validate that we have exactly one VM with exact display name match
+# Additional locals that depend on the data source
 locals {
-  vm_validation = {
-    for vm_name in local.all_vms_including_external : vm_name => {
-      found_vm = data.nsxt_policy_vm.vm_search[vm_name]
-      # Validate that the found VM's display name exactly matches what we're looking for
-      is_exact_match = data.nsxt_policy_vm.vm_search[vm_name].display_name == vm_name
-    }
+  # Find exact matches from all VMs in NSX
+  found_vms = {
+    for vm_name in local.all_vms_including_external :
+    vm_name => data.nsxt_policy_vms.all_vms.items[vm_name]
+    if contains(keys(data.nsxt_policy_vms.all_vms.items), vm_name)
   }
-  
-  # Check for any non-exact matches and create error message
-  vm_validation_errors = [
-    for vm_name, validation in local.vm_validation : vm_name
-    if !validation.is_exact_match
+
+  # Check for missing VMs
+  missing_vms = [
+    for vm_name in local.all_vms_including_external :
+    vm_name
+    if !contains(keys(data.nsxt_policy_vms.all_vms.items), vm_name)
   ]
 }
 
-# Validation check that will fail with clear error message if VM names don't match exactly
+# Validation resource to check for missing VMs
 resource "null_resource" "vm_name_validation" {
-  count = length(local.vm_validation_errors) > 0 ? 1 : 0
-  
+  count = length(local.missing_vms) > 0 ? 1 : 0
+
   provisioner "local-exec" {
-    command = "echo 'VM Name Validation Failed!' && exit 1"
+    command = <<-EOT
+      echo "ERROR: The following VM names are not found in NSX Manager:"
+      echo "${join("\n", local.missing_vms)}"
+      echo ""
+      echo "Please ensure that:"
+      echo "1. The VM names in your YAML files match exactly with the display names in NSX Manager"
+      echo "2. The VMs are powered on and visible in NSX"
+      echo ""
+      echo "Available VMs in NSX Manager:"
+      echo "${join("\n", keys(data.nsxt_policy_vms.all_vms.items))}"
+      exit 1
+    EOT
   }
-  
+
   lifecycle {
     precondition {
-      condition = length(local.vm_validation_errors) == 0
-      error_message = <<-EOT
-        VM name validation failed! The following VMs in your YAML do not exactly match NSX VM display names:
-        
-        ${join("\n", [
-          for vm_name in local.vm_validation_errors : 
-          "  - YAML: '${vm_name}' -> NSX: '${local.vm_validation[vm_name].found_vm.display_name}'"
-        ])}
-        
-        This often happens when:
-        1. VM names in YAML are partial matches (e.g., 'LMBB-AZT-PRTG' matches 'LMBB-AZT-PRTG04')
-        2. VM names have different casing
-        3. VM names have extra spaces or characters
-        
-        Please update your YAML files to use exact VM display names as they appear in NSX Manager.
-        
-        To find the exact VM names, check NSX Manager > Inventory > Virtual Machines.
-      EOT
+      condition     = length(local.missing_vms) == 0
+      error_message = "VM name validation failed: ${length(local.missing_vms)} VM(s) not found in NSX Manager: ${join(", ", local.missing_vms)}. Ensure VM names in YAML match exactly with NSX Manager display names."
     }
   }
 }
 
-# Get VM instances by display name (exact matching validated above)
-data "nsxt_policy_vm" "vms" {
-  for_each = local.all_vms_including_external
-
-  display_name = each.value
-  
-  # This will fail with a clear error if validation found issues
-  depends_on = [null_resource.vm_name_validation]
-}
-
-# Apply all hierarchy tags to VMs
+# Apply all hierarchy tags to VMs using the found VMs
 resource "nsxt_policy_vm_tags" "hierarchy_tags" {
-  for_each = local.all_vms_including_external
+  for_each = local.found_vms
 
-  instance_id = data.nsxt_policy_vm.vms[each.key].instance_id
+  instance_id = each.value
+
+  depends_on = [null_resource.vm_name_validation]
 
   # Tenant tag (for all VMs)
   tag {
