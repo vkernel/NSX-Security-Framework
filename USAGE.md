@@ -427,6 +427,41 @@ The consumer/provider model simplifies policy definition:
    - Verify that group references in policies match the defined group names
    - Check that consumer/provider groups contain the expected resources
 
+9. **VM Name Exact Matching Issues**:
+   - **Problem**: Error message about VM names not matching exactly
+   - **Cause**: VM names in YAML are partial matches or have slight differences
+   - **Example**: YAML has `LMBB-AZT-PRTG` but NSX has `LMBB-AZT-PRTG04`
+   - **Solution**: 
+     1. Check NSX Manager → Inventory → Virtual Machines for exact names
+     2. Update YAML files to use exact VM display names
+     3. Ensure no extra spaces, different casing, or partial matches
+   - **Prevention**: Always copy VM names directly from NSX Manager UI
+
+### VM Name Validation Error Example
+
+If you encounter a VM name validation error, it will look like this:
+
+```
+VM name validation failed! The following VMs in your YAML do not exactly match NSX VM display names:
+
+  - YAML: 'LMBB-AZT-PRTG' -> NSX: 'LMBB-AZT-PRTG04'
+  - YAML: 'web-server' -> NSX: 'Web-Server'
+
+This often happens when:
+1. VM names in YAML are partial matches (e.g., 'LMBB-AZT-PRTG' matches 'LMBB-AZT-PRTG04')
+2. VM names have different casing
+3. VM names have extra spaces or characters
+
+Please update your YAML files to use exact VM display names as they appear in NSX Manager.
+```
+
+**How to fix**:
+1. Open NSX Manager → Inventory → Virtual Machines  
+2. Find the VMs mentioned in the error
+3. Copy the exact display names from NSX Manager
+4. Update your YAML files with the exact names
+5. Re-run terraform apply
+
 ## Validating Policy Order
 
 To verify that your policies are being created in the correct order:

@@ -669,3 +669,47 @@ Each module exposes specific outputs that can be used for reference or in other 
   - `rule_count` - Count of rules created for each policy type
 
 These outputs can be useful for debugging, reporting, or integrating with other systems. The order-related outputs are particularly valuable for validating that policies are created in the intended sequence.
+
+## VM Name Exact Matching
+
+The framework now includes **VM name exact matching validation** to prevent issues with similar VM names. This addresses common problems where partial name matches can cause confusion.
+
+### The Problem
+When you have VMs with similar names like:
+- `LMBB-AZT-PRTG` (the VM you want)
+- `LMBB-AZT-PRTG04` (a different VM)  
+- `LMBB-AZT-PRTG06` (another different VM)
+
+The old behavior might match any of these VMs when you specify `LMBB-AZT-PRTG` in your YAML.
+
+### The Solution
+The framework now validates that:
+1. **Exact Match Required**: VM names in your YAML must exactly match NSX VM display names
+2. **Clear Error Messages**: When there's a mismatch, you get a detailed error showing:
+   - What you specified in YAML
+   - What was actually found in NSX
+   - Guidance on how to fix it
+
+### Example Error Message
+```
+VM name validation failed! The following VMs in your YAML do not exactly match NSX VM display names:
+
+  - YAML: 'LMBB-AZT-PRTG' -> NSX: 'LMBB-AZT-PRTG04'
+
+This often happens when:
+1. VM names in YAML are partial matches (e.g., 'LMBB-AZT-PRTG' matches 'LMBB-AZT-PRTG04')
+2. VM names have different casing
+3. VM names have extra spaces or characters
+
+Please update your YAML files to use exact VM display names as they appear in NSX Manager.
+
+To find the exact VM names, check NSX Manager > Inventory > Virtual Machines.
+```
+
+### How to Fix VM Name Issues
+1. **Check NSX Manager**: Go to Inventory → Virtual Machines
+2. **Copy Exact Names**: Use the exact display name as shown in NSX
+3. **Update YAML Files**: Replace the partial/incorrect names with exact names
+4. **Re-run Terraform**: The validation will pass once names match exactly
+
+This validation ensures that your policies are applied to the correct VMs and prevents accidental misconfigurations.

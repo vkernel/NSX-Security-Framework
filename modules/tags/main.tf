@@ -3,6 +3,9 @@ terraform {
     nsxt = {
       source = "vmware/nsxt"
     }
+    null = {
+      source = "hashicorp/null"
+    }
   }
 }
 
@@ -127,11 +130,70 @@ locals {
   ))
 }
 
-# Get VM instances by display name
+# Search for all VMs to validate exact matching
+data "nsxt_policy_vm" "vm_search" {
+  for_each = local.all_vms_including_external
+  
+  display_name = each.value
+}
+
+# Validate that we have exactly one VM with exact display name match
+locals {
+  vm_validation = {
+    for vm_name in local.all_vms_including_external : vm_name => {
+      found_vm = data.nsxt_policy_vm.vm_search[vm_name]
+      # Validate that the found VM's display name exactly matches what we're looking for
+      is_exact_match = data.nsxt_policy_vm.vm_search[vm_name].display_name == vm_name
+    }
+  }
+  
+  # Check for any non-exact matches and create error message
+  vm_validation_errors = [
+    for vm_name, validation in local.vm_validation : vm_name
+    if !validation.is_exact_match
+  ]
+}
+
+# Validation check that will fail with clear error message if VM names don't match exactly
+resource "null_resource" "vm_name_validation" {
+  count = length(local.vm_validation_errors) > 0 ? 1 : 0
+  
+  provisioner "local-exec" {
+    command = "echo 'VM Name Validation Failed!' && exit 1"
+  }
+  
+  lifecycle {
+    precondition {
+      condition = length(local.vm_validation_errors) == 0
+      error_message = <<-EOT
+        VM name validation failed! The following VMs in your YAML do not exactly match NSX VM display names:
+        
+        ${join("\n", [
+          for vm_name in local.vm_validation_errors : 
+          "  - YAML: '${vm_name}' -> NSX: '${local.vm_validation[vm_name].found_vm.display_name}'"
+        ])}
+        
+        This often happens when:
+        1. VM names in YAML are partial matches (e.g., 'LMBB-AZT-PRTG' matches 'LMBB-AZT-PRTG04')
+        2. VM names have different casing
+        3. VM names have extra spaces or characters
+        
+        Please update your YAML files to use exact VM display names as they appear in NSX Manager.
+        
+        To find the exact VM names, check NSX Manager > Inventory > Virtual Machines.
+      EOT
+    }
+  }
+}
+
+# Get VM instances by display name (exact matching validated above)
 data "nsxt_policy_vm" "vms" {
   for_each = local.all_vms_including_external
 
   display_name = each.value
+  
+  # This will fail with a clear error if validation found issues
+  depends_on = [null_resource.vm_name_validation]
 }
 
 # Apply all hierarchy tags to VMs
