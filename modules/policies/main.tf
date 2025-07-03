@@ -203,7 +203,7 @@ resource "nsxt_policy_security_policy" "emergency_policy" {
       ])
 
       action = rule.value.action
-      logged = true
+      logged = false
     }
   }
 }
@@ -255,7 +255,7 @@ resource "nsxt_policy_security_policy" "environment_policy" {
       ])
 
       action = rule.value.action
-      logged = true
+      logged = false
     }
   }
 
@@ -423,7 +423,7 @@ resource "nsxt_policy_security_policy" "application_policy" {
       ]) : []
 
       action = rule.value.action
-      logged = true
+      logged = false
     }
   }
 
