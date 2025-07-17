@@ -69,6 +69,7 @@ resource "nsxt_policy_service" "custom_services" {
     }
   }
 
+  # TCP/UDP services
   dynamic "l4_port_set_entry" {
     for_each = each.value.protocol == "tcp" || each.value.protocol == "udp" ? [1] : []
     content {
@@ -78,13 +79,54 @@ resource "nsxt_policy_service" "custom_services" {
     }
   }
 
+  # ICMPv4 services
   dynamic "icmp_entry" {
-    for_each = each.value.protocol == "icmp" ? [1] : []
+    for_each = each.value.protocol == "icmp" || each.value.protocol == "icmpv4" ? [1] : []
     content {
       display_name = "icmp-${each.key}"
       protocol     = "ICMPv4"
       icmp_type    = try(each.value.icmp_type, null)
       icmp_code    = try(each.value.icmp_code, null)
+    }
+  }
+
+  # ICMPv6 services
+  dynamic "icmp_entry" {
+    for_each = each.value.protocol == "icmpv6" ? [1] : []
+    content {
+      display_name = "icmpv6-${each.key}"
+      protocol     = "ICMPv6"
+      icmp_type    = try(each.value.icmp_type, null)
+      icmp_code    = try(each.value.icmp_code, null)
+    }
+  }
+
+  # IP protocol services
+  dynamic "ip_protocol_entry" {
+    for_each = each.value.protocol == "ip" ? [1] : []
+    content {
+      display_name = "ip-${each.key}"
+      protocol     = tonumber(each.value.protocol_number)
+    }
+  }
+
+  # IGMP services
+  dynamic "igmp_entry" {
+    for_each = each.value.protocol == "igmp" ? [1] : []
+    content {
+      display_name = "igmp-${each.key}"
+    }
+  }
+
+  # ALG (Application Layer Gateway) services
+  # Note: ALG services may require specific NSX versions and provider support
+  # For now, ALG services can be created as L4 port services with TCP/UDP protocols
+  dynamic "l4_port_set_entry" {
+    for_each = each.value.protocol == "alg" ? [1] : []
+    content {
+      display_name      = "alg-${each.key}"
+      protocol          = "TCP"
+      destination_ports = [tostring(try(each.value.destination_port, 80))]
     }
   }
 } 

@@ -456,15 +456,33 @@ To use predefined services in your security policies, specify them in the `servi
 
 ### Custom Services
 
-Custom services are defined in the inventory.yaml file and referenced in the authorized-flows.yaml file:
+The framework supports comprehensive custom service definitions for all NSX service types including TCP, UDP, ICMPv4, ICMPv6, IP protocol, IGMP, and ALG services. Custom services are defined in the inventory.yaml file and referenced in the authorized-flows.yaml file:
 
 ```yaml
 # In inventory.yaml
 custom_services:  
+  # TCP/UDP Services
   svc-wld01-custom-service-name:
     ports:
       - 8443
     protocol: tcp
+  
+  # ICMP Services
+  svc-wld01-ping-monitoring:
+    protocol: icmp
+    icmp_type: 8
+    icmp_code: 0
+  
+  # IP Protocol Services
+  svc-wld01-gre-tunnel:
+    protocol: ip
+    protocol_number: 47
+  
+  # ALG Services
+  svc-wld01-oracle-alg:
+    protocol: alg
+    alg_type: ORACLE_TNS
+    destination_port: 1521
 
 # In authorized-flows.yaml
 - name: Example rule with custom services
@@ -473,6 +491,8 @@ custom_services:
   custom_services:
     - svc-wld01-custom-service-name
 ```
+
+For comprehensive documentation on all supported service types, configuration examples, and best practices, see [Custom Services Configuration Guide](CUSTOM-SERVICES-GUIDE.md).
 
 ## Context Profiles Usage
 

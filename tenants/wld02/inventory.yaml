@@ -79,7 +79,46 @@ wld02:
         - "*.microsoft.com"      
         - "*.office365.com"      
   custom_services:  
+    # TCP Services (existing)
     svc-wld02-custom-service-name1:
       ports:
         - 8443
       protocol: tcp
+    
+    # Additional service type examples
+    svc-wld02-web-alt:
+      ports:
+        - 8080
+        - 9090
+      protocol: tcp
+    
+    # UDP Services  
+    svc-wld02-voice-rtp:
+      ports:
+        - 5004
+        - 5060
+      protocol: udp
+    
+    # ICMPv4 Services
+    svc-wld02-ping-echo:
+      protocol: icmp
+      icmp_type: 0
+    
+    # ICMPv6 Services
+    svc-wld02-ipv6-router-adv:
+      protocol: icmpv6
+      icmp_type: 134
+    
+    # IP Protocol Services
+    svc-wld02-ipsec-ah:
+      protocol: ip
+      protocol_number: 51
+    
+    # IGMP Services
+    svc-wld02-iptv-multicast:
+      protocol: igmp
+    
+    # ALG Services (implemented as TCP services)
+    svc-wld02-tftp-service:
+      protocol: alg
+      destination_port: 69
