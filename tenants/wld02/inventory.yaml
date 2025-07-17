@@ -36,7 +36,7 @@ wld02:
     ext-wld02-ntp:  # External Services Key  
       - 192.168.12.1  
     ext-wld02-jumphosts:  # External Services Key  
-      - 10.10.89.11 
+      - 10.10.89.11
   consumer:
     cons-wld02-dev-3holapp:  
       - ext-wld02-jumphosts
@@ -77,22 +77,21 @@ wld02:
         - "AMQP"   
       domain:
         - "*.microsoft.com"      
-        - "*.office365.com"      
+        - "*.office365.com"
   custom_services:  
-    # TCP Services (existing)
+    # TCP Services  
     svc-wld02-custom-service-name1:
       ports:
         - 8443
       protocol: tcp
     
-    # Additional service type examples
     svc-wld02-web-alt:
       ports:
         - 8080
         - 9090
       protocol: tcp
     
-    # UDP Services  
+    # UDP Services
     svc-wld02-voice-rtp:
       ports:
         - 5004
@@ -102,17 +101,17 @@ wld02:
     # ICMPv4 Services
     svc-wld02-ping-echo:
       protocol: icmp
-      icmp_type: 0
+      icmp_type: 0  # Echo Reply
     
     # ICMPv6 Services
     svc-wld02-ipv6-router-adv:
       protocol: icmpv6
-      icmp_type: 134
+      icmp_type: 148  # Router Renumbering
     
     # IP Protocol Services
     svc-wld02-ipsec-ah:
       protocol: ip
-      protocol_number: 51
+      protocol_number: 7  # CBT
     
     # IGMP Services
     svc-wld02-iptv-multicast:

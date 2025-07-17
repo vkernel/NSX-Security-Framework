@@ -456,7 +456,7 @@ To use predefined services in your security policies, specify them in the `servi
 
 ### Custom Services
 
-The framework supports comprehensive custom service definitions for all NSX service types including TCP, UDP, ICMPv4, ICMPv6, IP protocol, IGMP, and ALG services. Custom services are defined in the inventory.yaml file and referenced in the authorized-flows.yaml file:
+The framework supports comprehensive custom service definitions for all NSX service types including TCP, UDP, ICMPv4, ICMPv6, IP protocol, IGMP, and ALG services. Custom services use **numeric values** for protocol numbers and ICMP types, providing direct compatibility with the NSX Terraform provider.
 
 ```yaml
 # In inventory.yaml
@@ -470,18 +470,22 @@ custom_services:
   # ICMP Services
   svc-wld01-ping-monitoring:
     protocol: icmp
-    icmp_type: 8
+    icmp_type: 8  # Echo Request
     icmp_code: 0
   
   # IP Protocol Services
   svc-wld01-gre-tunnel:
     protocol: ip
-    protocol_number: 47
+    protocol_number: 47  # GRE
   
-  # ALG Services
+  # ICMPv6 Services
+  svc-wld01-ipv6-neighbor:
+    protocol: icmpv6
+    icmp_type: 135  # Neighbor Solicitation
+  
+  # ALG Services (implemented as TCP)
   svc-wld01-oracle-alg:
     protocol: alg
-    alg_type: ORACLE_TNS
     destination_port: 1521
 
 # In authorized-flows.yaml
@@ -492,7 +496,15 @@ custom_services:
     - svc-wld01-custom-service-name
 ```
 
-For comprehensive documentation on all supported service types, configuration examples, and best practices, see [Custom Services Configuration Guide](CUSTOM-SERVICES-GUIDE.md).
+**Key Features:**
+- **Direct NSX Integration**: Values passed directly to NSX Terraform provider
+- **No Hardcoded Mappings**: Clean, maintainable implementation
+- **Complete Protocol Support**: All IP protocols and ICMP types supported
+- **ALG Limitation**: ALG services implemented as TCP services (provider limitation)
+
+**Documentation:**
+- **[Custom Services Configuration](USAGE.md#custom-services-configuration)** - Complete configuration guide and examples in USAGE.md
+- **[Protocol Reference](PROTOCOL-REFERENCE.md)** - Comprehensive list of all protocol numbers and ICMP types
 
 ## Context Profiles Usage
 

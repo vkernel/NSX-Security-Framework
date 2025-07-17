@@ -85,7 +85,7 @@ resource "nsxt_policy_service" "custom_services" {
     content {
       display_name = "icmp-${each.key}"
       protocol     = "ICMPv4"
-      icmp_type    = try(each.value.icmp_type, null)
+      icmp_type    = tostring(try(each.value.icmp_type, 8))
       icmp_code    = try(each.value.icmp_code, null)
     }
   }
@@ -96,7 +96,7 @@ resource "nsxt_policy_service" "custom_services" {
     content {
       display_name = "icmpv6-${each.key}"
       protocol     = "ICMPv6"
-      icmp_type    = try(each.value.icmp_type, null)
+      icmp_type    = tostring(try(each.value.icmp_type, 128))
       icmp_code    = try(each.value.icmp_code, null)
     }
   }
@@ -106,7 +106,7 @@ resource "nsxt_policy_service" "custom_services" {
     for_each = each.value.protocol == "ip" ? [1] : []
     content {
       display_name = "ip-${each.key}"
-      protocol     = tonumber(each.value.protocol_number)
+      protocol     = try(each.value.protocol_name, each.value.protocol_number, 6)
     }
   }
 
@@ -119,12 +119,14 @@ resource "nsxt_policy_service" "custom_services" {
   }
 
   # ALG (Application Layer Gateway) services
-  # Note: ALG services may require specific NSX versions and provider support
-  # For now, ALG services can be created as L4 port services with TCP/UDP protocols
+  # LIMITATION: The NSX Terraform provider does not support native ALG service entries
+  # ALG services are implemented as TCP services with the specified destination port
+  # This provides basic port-based filtering but lacks full ALG protocol inspection
+  # For full ALG functionality, configure ALG services directly in NSX Manager UI
   dynamic "l4_port_set_entry" {
     for_each = each.value.protocol == "alg" ? [1] : []
     content {
-      display_name      = "alg-${each.key}"
+      display_name      = "alg-tcp-${each.key}"
       protocol          = "TCP"
       destination_ports = [tostring(try(each.value.destination_port, 80))]
     }

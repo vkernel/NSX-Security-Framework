@@ -97,36 +97,36 @@ wld01:
     # ICMPv4 Services
     svc-wld01-ping-monitoring:
       protocol: icmp
-      icmp_type: 8
+      icmp_type: 8  # Echo Request
       icmp_code: 0
     
     svc-wld01-icmp-unreachable:
       protocol: icmpv4
-      icmp_type: 3
+      icmp_type: 3  # Destination Unreachable
     
     # ICMPv6 Services
     svc-wld01-ipv6-ping:
       protocol: icmpv6
-      icmp_type: 128
+      icmp_type: 128  # Echo Request
       # Note: icmp_code omitted for Echo Request - NSX validates type/code combinations
     
     svc-wld01-ipv6-neighbor:
       protocol: icmpv6
-      icmp_type: 135
+      icmp_type: 135  # Neighbor Solicitation
       # Note: icmp_code omitted for Neighbor Solicitation
     
     # IP Protocol Services
     svc-wld01-gre-tunnel:
       protocol: ip
-      protocol_number: 47
+      protocol_number: 47  # GRE
     
     svc-wld01-esp-vpn:
       protocol: ip
-      protocol_number: 50
+      protocol_number: 50  # ESP
     
     svc-wld01-ospf-routing:
       protocol: ip
-      protocol_number: 89
+      protocol_number: 89  # OSPF
     
     # IGMP Services
     svc-wld01-multicast:

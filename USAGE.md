@@ -411,23 +411,29 @@ The consumer/provider model simplifies policy definition:
 5. **Predefined Service Not Found**:
    - Verify the exact spelling of the service name as shown in NSX UI
    - Check if the service exists in your NSX version
+
+6. **Custom Services Issues**:
+   - See the [Custom Services Troubleshooting](#custom-services-troubleshooting) section for detailed guidance
+   - Verify protocol numbers are within valid range (0-255)
+   - For ICMPv6 issues, remove `icmp_code` parameter for problematic types
+   - Remember ALG services are implemented as TCP services only
    
-6. **Context Profile Issues**:
+7. **Context Profile Issues**:
    - Ensure your App IDs and domain names are formatted correctly
    - Verify that context profile names match exactly as shown in NSX UI
    - Remember that when using multiple context profiles, services must be set to ANY
 
-7. **Policy Order Issues**:
+8. **Policy Order Issues**:
    - Verify that application policies appear in the correct order in your YAML file
    - Use `terraform output application_policy_keys_ordered` to check the detected order
    - Ensure proper YAML indentation (exactly 4 spaces for policy keys)
 
-8. **Consumer/Provider Group Issues**:
+9. **Consumer/Provider Group Issues**:
    - Ensure consumer and provider groups are defined in inventory.yaml
    - Verify that group references in policies match the defined group names
    - Check that consumer/provider groups contain the expected resources
 
-9. **VM Name Exact Matching Issues**:
+10. **VM Name Exact Matching Issues**:
    - **Problem**: Error message about VM names not matching exactly
    - **Cause**: VM names in YAML are partial matches or have slight differences
    - **Example**: YAML has `LMBB-AZT-PRTG` but NSX has `LMBB-AZT-PRTG04`
@@ -670,6 +676,10 @@ NSX provides approximately 400+ predefined services that can be used in your sec
    - Reference the exact service name in your authorized-flows.yaml file
    - Example: `services: ["HTTPS", "SSH"]`
 
+### Custom Services
+
+For services not available in NSX predefined services, see the [Custom Services Configuration](#custom-services-configuration) section for comprehensive guidance on creating TCP, UDP, ICMP, ICMPv6, IP protocol, IGMP, and ALG services.
+
 ### Predefined Context Profiles
 
 NSX provides predefined context profiles that can be used for deeper traffic inspection:
@@ -758,6 +768,357 @@ The following diagram illustrates the overall deployment process:
 │              │              │ Preserved) │
 └──────────────┴──────────────┴───────────┘ 
 ```
+
+## Custom Services Configuration
+
+### Overview
+
+The NSX Security Framework supports creating custom services for all major service types available in NSX Manager. This includes TCP/UDP ports, ICMP types, IP protocols, IGMP, ICMPv6, and ALG (Application Layer Gateway) services.
+
+### Supported Service Types
+
+#### 1. TCP/UDP Services
+Traditional layer 4 services with port specifications.
+
+**Configuration:**
+```yaml
+custom_services:
+  svc-web-alt:
+    protocol: tcp
+    ports: [8080, 8443]
+  
+  svc-custom-udp:
+    protocol: udp
+    ports: [9999, 10000, 10001]
+```
+
+#### 2. ICMPv4 Services
+Internet Control Message Protocol version 4 services.
+
+**Configuration:**
+```yaml
+custom_services:
+  svc-ping:
+    protocol: icmp
+    icmp_type: 8  # Echo Request
+    icmp_code: 0  # Optional
+  
+  svc-dest-unreachable:
+    protocol: icmp
+    icmp_type: 3  # Destination Unreachable
+```
+
+**Common ICMP Types:**
+- Echo Request: 8
+- Echo Reply: 0
+- Destination Unreachable: 3
+- Time Exceeded: 11
+- Redirect: 5
+
+**Complete Reference:** See [PROTOCOL-REFERENCE.md](PROTOCOL-REFERENCE.md) for all ICMP types.
+
+#### 3. ICMPv6 Services
+Internet Control Message Protocol version 6 services.
+
+**Configuration:**
+```yaml
+custom_services:
+  svc-ipv6-ping:
+    protocol: icmpv6
+    icmp_type: 128  # Echo Request
+  
+  svc-neighbor-discovery:
+    protocol: icmpv6
+    icmp_type: 135  # Neighbor Solicitation
+```
+
+**Important Notes for ICMPv6:**
+- Some ICMPv6 types have strict validation in NSX
+- Avoid using `icmp_code` for types like Echo Request (128), Neighbor Solicitation (135), etc.
+- Test with your NSX version for compatibility
+
+**Common ICMPv6 Types:**
+- Echo Request: 128
+- Echo Reply: 129
+- Neighbor Solicitation: 135
+- Neighbor Advertisement: 136
+- Router Advertisement: 134
+
+**Complete Reference:** See [PROTOCOL-REFERENCE.md](PROTOCOL-REFERENCE.md) for all ICMPv6 types.
+
+#### 4. IP Protocol Services
+Services based on IP protocol numbers (Layer 3).
+
+**Configuration:**
+```yaml
+custom_services:
+  svc-gre:
+    protocol: ip
+    protocol_number: 47  # GRE protocol
+  
+  svc-esp:
+    protocol: ip
+    protocol_number: 50  # ESP
+```
+
+**Common IP Protocols:**
+- ICMP: 1
+- IGMP: 2
+- TCP: 6
+- UDP: 17
+- GRE: 47
+- ESP: 50
+- AH: 51
+- OSPF: 89
+
+**Complete Reference:** See [PROTOCOL-REFERENCE.md](PROTOCOL-REFERENCE.md) for all IP protocol numbers.
+
+#### 5. IGMP Services
+Internet Group Management Protocol services.
+
+**Configuration:**
+```yaml
+custom_services:
+  svc-multicast:
+    protocol: igmp
+```
+
+#### 6. ALG Services
+Application Layer Gateway services.
+
+**⚠️ IMPORTANT LIMITATION:**
+The NSX Terraform provider does not support native ALG service entries. ALG services are implemented as TCP services with the specified destination port. This provides basic port-based filtering but lacks full ALG protocol inspection capabilities.
+
+**Configuration:**
+```yaml
+custom_services:
+  svc-ftp-control:
+    protocol: alg
+    destination_port: 21
+  
+  svc-oracle-tns:
+    protocol: alg
+    destination_port: 1521
+```
+
+**What Actually Gets Created:**
+- The service will be created as a TCP service on the specified port
+- Display name will be prefixed with "alg-tcp-" to indicate the limitation
+- No protocol-specific ALG functionality will be available
+
+**For Full ALG Functionality:**
+- Configure ALG services directly in NSX Manager UI
+- Use predefined NSX services that include ALG support where available
+- Consider using multiple custom services (TCP/UDP) to cover ALG application requirements
+
+### Custom Services Configuration Examples
+
+#### Complete Example (wld01/inventory.yaml)
+```yaml
+tenant_info:
+  name: "wld01"
+  description: "Workload Domain 01"
+
+groups:
+  # ... groups configuration
+
+custom_services:
+  # TCP Services
+  svc-wld01-web:
+    protocol: tcp
+    ports: [80, 443]
+  
+  svc-wld01-database:
+    protocol: tcp
+    ports: [3306, 5432]
+  
+  # UDP Services  
+  svc-wld01-dns:
+    protocol: udp
+    ports: [53]
+  
+  # ICMP Services
+  svc-wld01-ping:
+    protocol: icmp
+    icmp_type: 8
+  
+  # ICMPv6 Services
+  svc-wld01-ipv6-ping:
+    protocol: icmpv6
+    icmp_type: 128
+  
+  # IP Protocol Services
+  svc-wld01-gre:
+    protocol: ip
+    protocol_number: 47
+  
+  # IGMP Services
+  svc-wld01-multicast:
+    protocol: igmp
+  
+  # ALG Services (implemented as TCP)
+  svc-wld01-ftp:
+    protocol: alg
+    destination_port: 21
+```
+
+#### Value Formats
+
+The framework accepts numeric values for protocol numbers and ICMP types. Values are passed directly to the NSX Terraform provider for validation.
+
+**Protocol Numbers:** Use numeric values: `protocol_number: 47`
+
+**ICMP Types:** Use numeric values: `icmp_type: 8`
+
+**Note:** Values are passed directly to the NSX Terraform provider, which handles the translation and validation. This provides flexibility and ensures compatibility with future NSX versions.
+
+#### Protocol and Type References
+
+For complete lists of all protocol numbers and ICMP types, see:
+- **[PROTOCOL-REFERENCE.md](PROTOCOL-REFERENCE.md)** - Comprehensive reference for all IP protocol numbers, ICMP types, and ICMPv6 types
+
+#### Integration with Application Policies
+
+Custom services can be referenced in application policies using the `custom_services` field:
+
+```yaml
+application_policy:
+  web-tier-policy:
+    - name: "allow-web-traffic"
+      source_groups: ["web-servers"]
+      destination_groups: ["db-servers"]
+      custom_services: ["svc-wld01-database"]
+      action: "ALLOW"
+```
+
+### Custom Services Best Practices
+
+#### 1. Naming Conventions
+- Use descriptive names with tenant prefixes
+- Follow consistent patterns: `svc-{tenant}-{purpose}`
+- Include protocol type for clarity
+
+#### 2. Service Organization
+- Group related services together in YAML
+- Use comments to document complex configurations
+- Consider service reusability across policies
+
+#### 3. Protocol Selection
+- Use TCP/UDP for standard application services
+- Use ICMP for diagnostic and control protocols
+- Use IP protocol services for VPN and tunneling
+- Use IGMP for multicast applications
+
+#### 4. Port Management
+- Document non-standard ports in comments
+- Consider port ranges for applications that use multiple ports
+- Validate port assignments with application teams
+
+#### 5. ICMPv6 Considerations
+- Test ICMPv6 services in your environment first
+- Be aware of NSX version-specific limitations
+- Avoid unnecessary `icmp_code` specifications
+
+#### 6. ALG Service Considerations
+- Understand that ALG services are implemented as TCP services
+- For full ALG functionality, use NSX Manager UI
+- Consider creating multiple TCP/UDP services for complex ALG applications
+- Document the limitation in your service configurations
+
+### Custom Services Troubleshooting
+
+#### Common Issues
+
+1. **ICMPv6 Type/Code Validation Errors**
+   ```
+   Error: Invalid ICMP type, code combination
+   ```
+   - Remove `icmp_code` parameter for problematic types
+   - Check NSX documentation for supported combinations
+
+2. **Protocol Number Issues**
+   ```
+   Error: Invalid protocol number
+   ```
+   - Verify protocol numbers are within valid range (0-255)
+   - Check if the protocol is supported by NSX
+   - Refer to [PROTOCOL-REFERENCE.md](PROTOCOL-REFERENCE.md) for valid protocol numbers
+
+3. **Service Not Created**
+   - Verify YAML syntax is correct
+   - Check that all required fields are provided
+   - Ensure service name is unique
+
+4. **ALG Services Not Working as Expected**
+   - Remember ALG services are implemented as TCP services
+   - Check if full ALG functionality is required
+   - Consider configuring ALG services in NSX Manager UI for full functionality
+
+### Custom Services Advanced Configuration
+
+#### Multi-Port Services
+```yaml
+svc-web-cluster:
+  protocol: tcp
+  ports: [80, 443, 8080, 8443]
+```
+
+#### Multiple ICMP Types
+Create separate services for different ICMP types:
+```yaml
+svc-icmp-echo:
+  protocol: icmp
+  icmp_type: 8
+
+svc-icmp-unreachable:
+  protocol: icmp
+  icmp_type: 3
+```
+
+#### Complex ALG Applications
+For applications requiring ALG functionality:
+```yaml
+# ALG service (implemented as TCP)
+svc-ftp-control:
+  protocol: alg
+  destination_port: 21
+
+# Additional TCP service for data channel
+svc-ftp-data:
+  protocol: tcp
+  ports: [20]
+
+# Passive FTP range (if needed)
+svc-ftp-passive:
+  protocol: tcp
+  ports: [10000, 10001, 10002, 10003, 10004]
+```
+
+### Custom Services Quick Reference
+
+#### Common Values
+
+**IP Protocols:**
+- ICMP: 1, IGMP: 2, TCP: 6, UDP: 17
+- GRE: 47, ESP: 50, AH: 51, OSPF: 89
+
+**ICMP Types (IPv4):**
+- Echo Request: 8, Echo Reply: 0
+- Dest Unreachable: 3, Time Exceeded: 11
+
+**ICMPv6 Types:**
+- Echo Request: 128, Echo Reply: 129
+- Neighbor Solicitation: 135, Router Advertisement: 134
+
+📖 **[PROTOCOL-REFERENCE.md](PROTOCOL-REFERENCE.md)** - Complete protocol numbers and ICMP types reference
+
+#### Important Limitations
+
+**ALG Services:**
+- **No native ALG support** in Terraform provider
+- ALG services created as **TCP services only**
+- For full ALG functionality: **use NSX Manager UI**
+- Service name prefixed with "alg-tcp-"
 
 ## VM Name Exact Matching Issues
 
