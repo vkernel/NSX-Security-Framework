@@ -36,13 +36,15 @@ locals {
   sub_application_data = flatten([
     for env_key, env in local.environments : [
       for app_key, app in env :
-      # Only process apps that have sub-applications (can't index with [0])
-      !can(app[0]) ? [
+      # Only process apps that have sub-applications (not direct VM arrays and not new structure with vms/ips)
+      !can(app[0]) && !can(app.vms) ? [
         for sub_app_key, sub_app in app : {
           sub_app_key = sub_app_key
           app_key     = app_key
           env_key     = env_key
         }
+        # Exclude vms and ips keys from being treated as sub-applications
+        if sub_app_key != "vms" && sub_app_key != "ips"
       ] : []
     ]
   ])
@@ -59,14 +61,49 @@ locals {
     }
   }
 
+  # Extract IP addresses from applications (both direct apps and sub-applications)
+  application_ips = {
+    for env_key, env in local.environments :
+    env_key => {
+      for app_key, app in env :
+      app_key => {
+        # Handle new structure with explicit ips key
+        ips = try(app.ips, [])
+        # Handle direct app case (can index with [0])
+        has_direct_structure = can(app[0])
+        # Handle new structure case (has vms/ips keys)
+        has_new_structure = can(app.vms)
+      }
+      # Only include applications that actually exist and have the new structure
+      if can(app.ips)
+    }
+  }
+
+  # Extract IP addresses from sub-applications
+  sub_application_ips = {
+    for sa in local.sub_application_data :
+    sa.sub_app_key => try(local.environments[sa.env_key][sa.app_key][sa.sub_app_key].ips, [])
+    # Only include if the sub-application actually has IPs
+    if can(local.environments[sa.env_key][sa.app_key][sa.sub_app_key].ips)
+  }
+
   # Get the external services data
   external_services = try(local.tenant_data.external, {})
 
   # Get the set of all external service keys (names)
   external_service_keys = toset(keys(local.external_services))
 
-  # Emergency groups
-  emergency_keys = toset(keys(try(local.tenant_data.emergency, {})))
+  # Emergency groups and IP processing
+  emergency_data = try(local.tenant_data.emergency, {})
+  emergency_keys = toset(keys(local.emergency_data))
+  
+  # Extract IP addresses from emergency groups
+  emergency_ips = {
+    for emg_key, emg_data in local.emergency_data :
+    emg_key => try(emg_data.ips, [])
+    # Only include if the emergency group actually has IPs
+    if can(emg_data.ips)
+  }
 
   # Consumer and provider groups
   consumer_data = try(local.tenant_data.consumer, {})
@@ -224,6 +261,26 @@ resource "nsxt_policy_group" "application_groups" {
     tag   = "terraform"
   }
 
+  # Create criteria for IP addresses (if any exist)
+  dynamic "criteria" {
+    for_each = length(try(local.application_ips[local.app_to_env[each.key]][each.key].ips, [])) > 0 ? [1] : []
+    
+    content {
+      ipaddress_expression {
+        ip_addresses = toset(flatten([try(local.application_ips[local.app_to_env[each.key]][each.key].ips, [])]))
+      }
+    }
+  }
+
+  # Add conjunction if both IP addresses and VMs exist
+  dynamic "conjunction" {
+    for_each = length(try(local.application_ips[local.app_to_env[each.key]][each.key].ips, [])) > 0 ? [1] : []
+    
+    content {
+      operator = "OR"
+    }
+  }
+
   criteria {
     condition {
       key         = "Tag"
@@ -305,6 +362,26 @@ resource "nsxt_policy_group" "sub_application_groups" {
   tag {
     scope = "managed-by"
     tag   = "terraform"
+  }
+
+  # Create criteria for IP addresses (if any exist)
+  dynamic "criteria" {
+    for_each = length(try(local.sub_application_ips[each.key], [])) > 0 ? [1] : []
+    
+    content {
+      ipaddress_expression {
+        ip_addresses = toset(flatten([try(local.sub_application_ips[each.key], [])]))
+      }
+    }
+  }
+
+  # Add conjunction if both IP addresses and VMs exist
+  dynamic "conjunction" {
+    for_each = length(try(local.sub_application_ips[each.key], [])) > 0 ? [1] : []
+    
+    content {
+      operator = "OR"
+    }
   }
 
   criteria {
@@ -395,30 +472,35 @@ resource "nsxt_policy_group" "external_service_groups" {
 
   # Create criteria for IP addresses/CIDRs (if any exist)
   dynamic "criteria" {
-    for_each = length([
-      for entry in local.external_services[each.key] : entry
+    for_each = length(try(local.external_services[each.key].ips, [])) > 0 || length([
+      for entry in try(local.external_services[each.key], []) : entry
       if can(regex("^([0-9]{1,3}\\.){3}[0-9]{1,3}(/[0-9]{1,2})?$", entry))
     ]) > 0 ? [1] : []
     
     content {
       ipaddress_expression {
-        ip_addresses = [
-          for entry in local.external_services[each.key] : entry
-          if can(regex("^([0-9]{1,3}\\.){3}[0-9]{1,3}(/[0-9]{1,2})?$", entry))
-        ]
+        ip_addresses = toset(concat(
+          # New structure - explicit ips key
+          try(local.external_services[each.key].ips, []),
+          # Fallback to old structure - detect IPs in flat array
+          [
+            for entry in try(local.external_services[each.key], []) : entry
+            if can(regex("^([0-9]{1,3}\\.){3}[0-9]{1,3}(/[0-9]{1,2})?$", entry))
+          ]
+        ))
       }
     }
   }
 
   # Add conjunction if both IP addresses and VMs exist
   dynamic "conjunction" {
-    for_each = length([
-      for entry in local.external_services[each.key] : entry
+    for_each = (length(try(local.external_services[each.key].ips, [])) > 0 || length([
+      for entry in try(local.external_services[each.key], []) : entry
       if can(regex("^([0-9]{1,3}\\.){3}[0-9]{1,3}(/[0-9]{1,2})?$", entry))
-    ]) > 0 && length([
-      for entry in local.external_services[each.key] : entry
+    ]) > 0) && (length(try(local.external_services[each.key].vms, [])) > 0 || length([
+      for entry in try(local.external_services[each.key], []) : entry
       if !can(regex("^([0-9]{1,3}\\.){3}[0-9]{1,3}(/[0-9]{1,2})?$", entry))
-    ]) > 0 ? [1] : []
+    ]) > 0) ? [1] : []
     
     content {
       operator = "OR"
@@ -427,8 +509,8 @@ resource "nsxt_policy_group" "external_service_groups" {
 
   # Create criteria for VM names (if any exist)
   dynamic "criteria" {
-    for_each = length([
-      for entry in local.external_services[each.key] : entry
+    for_each = length(try(local.external_services[each.key].vms, [])) > 0 || length([
+      for entry in try(local.external_services[each.key], []) : entry
       if !can(regex("^([0-9]{1,3}\\.){3}[0-9]{1,3}(/[0-9]{1,2})?$", entry))
     ]) > 0 ? [1] : []
     
@@ -477,6 +559,26 @@ resource "nsxt_policy_group" "emergency_groups" {
   tag {
     scope = "managed-by"
     tag   = "terraform"
+  }
+
+  # Create criteria for IP addresses (if any exist)
+  dynamic "criteria" {
+    for_each = length(try(local.emergency_ips[each.key], [])) > 0 ? [1] : []
+    
+    content {
+      ipaddress_expression {
+        ip_addresses = toset(flatten([try(local.emergency_ips[each.key], [])]))
+      }
+    }
+  }
+
+  # Add conjunction if both IP addresses and VMs exist
+  dynamic "conjunction" {
+    for_each = length(try(local.emergency_ips[each.key], [])) > 0 ? [1] : []
+    
+    content {
+      operator = "OR"
+    }
   }
 
   criteria {

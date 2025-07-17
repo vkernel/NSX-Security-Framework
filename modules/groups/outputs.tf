@@ -131,8 +131,9 @@ output "emergency_groups_details" {
       display_name  = emergency.display_name
       description   = emergency.description
       path          = emergency.path
-      vm_members    = try(local.tenant_data.emergency[emergency_key], [])
-      criteria_type = length(compact(coalesce(try(local.tenant_data.emergency[emergency_key], []), []))) > 0 ? "tag_based" : "empty"
+      vm_members    = try(local.emergency_data[emergency_key].vms, try(tolist(local.emergency_data[emergency_key]), []))
+      ip_members    = try(local.emergency_data[emergency_key].ips, [])
+      criteria_type = length(try(local.emergency_data[emergency_key].vms, try(tolist(local.emergency_data[emergency_key]), []))) > 0 || length(try(local.emergency_data[emergency_key].ips, [])) > 0 ? "mixed" : "empty"
     }
   }
 }

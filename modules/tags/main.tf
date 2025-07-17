@@ -26,9 +26,18 @@ locals {
   direct_vms = flatten([
     for env_key, env in local.environments : [
       for app_key, app in env :
-      # Only process apps that have a direct VM list (can index with [0])
+      # New structure: app has vms key
+      can(app.vms) ? [
+        for vm in tolist(app.vms) : {
+          vm          = vm
+          env_key     = env_key
+          app_key     = app_key
+          sub_app_key = null
+        }
+      ] : 
+      # Old structure: app is a direct VM array
       can(app[0]) ? [
-        for vm in app : {
+        for vm in tolist(app) : {
           vm          = vm
           env_key     = env_key
           app_key     = app_key
@@ -38,20 +47,32 @@ locals {
     ]
   ])
 
-  # Process VMs in sub-applications
+  # Process VMs in sub-applications  
   sub_app_vms = flatten([
     for env_key, env in local.environments : [
       for app_key, app in env :
-      # Only process apps that have sub-applications (can't index with [0])
-      !can(app[0]) ? flatten([
-        for sub_app_key, sub_app in app : [
-          for vm in sub_app : {
-            vm          = vm
-            env_key     = env_key
-            app_key     = app_key
-            sub_app_key = sub_app_key
-          }
-        ]
+      # Only process if it's not a direct VM structure
+      !can(app.vms) && !can(app[0]) ? flatten([
+        for sub_app_key, sub_app in app : (
+          # New structure: sub_app has vms key
+          can(sub_app.vms) ? [
+            for vm in tolist(sub_app.vms) : {
+              vm          = vm
+              env_key     = env_key
+              app_key     = app_key
+              sub_app_key = sub_app_key
+            }
+          ] :
+          # Old structure: sub_app is VM array
+          can(sub_app[0]) ? [
+            for vm in tolist(sub_app) : {
+              vm          = vm
+              env_key     = env_key
+              app_key     = app_key
+              sub_app_key = sub_app_key
+            }
+          ] : []
+        )
       ]) : []
     ]
   ])
@@ -91,16 +112,21 @@ locals {
   # Emergency stuff, if any
   emergency = try(local.tenant_data.emergency, {})
 
-  # Create a mapping of VM name to its emergency group key, handling empty lists
+  # Create a mapping of VM name to emergency group keys - handle both new and old structure
   emergency_vm_tags = merge(
     [
-      for emg_key, emg_list in local.emergency :
-      # Only process non-empty lists
-      length(compact(coalesce(emg_list, []))) > 0 ?
-      {
-        for vm in emg_list : vm => emg_key
-        if vm != null && vm != ""
-      } : {}
+      for emg_key, emg_data in local.emergency : merge(
+        # New structure - explicit vms key
+        {
+          for vm in try(emg_data.vms, []) : tostring(vm) => emg_key
+          if vm != null && vm != ""
+        },
+        # Fallback to old structure - flat array
+        can(emg_data[0]) ? {
+          for vm in tolist(emg_data) : tostring(vm) => emg_key
+          if vm != null && vm != "" && can(tostring(vm))
+        } : {}
+      )
     ]...
   )
 
@@ -113,11 +139,18 @@ locals {
   # Create a mapping of VM name to external service keys
   external_service_vm_tags = merge(
     [
-      for ext_key, ext_list in local.external_services : {
-        for entry in ext_list : entry => ext_key
-        # Only include entries that are NOT IP addresses/CIDRs (i.e., VM names)
-        if !can(regex("^([0-9]{1,3}\\.){3}[0-9]{1,3}(/[0-9]{1,2})?$", entry))
-      }
+      for ext_key, ext_data in local.external_services : merge(
+        # New structure - explicit vms key
+        {
+          for vm in try(ext_data.vms, []) : vm => ext_key
+        },
+        # Fallback to old structure - detect VMs in flat array
+        can(ext_data[0]) ? {
+          for entry in ext_data : entry => ext_key
+          # Only include entries that are NOT IP addresses/CIDRs (i.e., VM names)
+          if !can(regex("^([0-9]{1,3}\\.){3}[0-9]{1,3}(/[0-9]{1,2})?$", entry))
+        } : {}
+      )
     ]...
   )
 

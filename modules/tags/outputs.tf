@@ -57,11 +57,13 @@ output "tag_hierarchy_summary" {
 }
 
 output "emergency_vm_assignments" {
-  description = "Mapping of emergency groups to their assigned VMs"
+  description = "Mapping of emergency groups to their assigned VMs and IPs"
   value = {
-    for emg_key, emg_list in local.emergency : emg_key => {
-      vms      = compact(coalesce(emg_list, []))
-      vm_count = length(compact(coalesce(emg_list, [])))
+    for emg_key, emg_data in local.emergency : emg_key => {
+      vms      = try(emg_data.vms, can(emg_data[0]) ? [for vm in tolist(emg_data) : tostring(vm) if can(tostring(vm))] : [])
+      ips      = try(emg_data.ips, [])
+      vm_count = length(try(emg_data.vms, can(emg_data[0]) ? [for vm in tolist(emg_data) : tostring(vm) if can(tostring(vm))] : []))
+      ip_count = length(try(emg_data.ips, []))
     }
     if try(local.tenant_data.emergency, null) != null
   }
